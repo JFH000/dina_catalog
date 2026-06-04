@@ -7,6 +7,24 @@ const props = defineProps<{ product: Product }>()
 const cart = useCartStore()
 
 const quantity = computed(() => cart.getQuantity(props.product.id))
+
+const BLANK = /^[-–—/\\.\s]*(n\/?a|none|nan|null|–|—|-)?[-–—/\\.\s]*$/i
+function visible(val: string | null | undefined): string | null {
+  if (val == null) return null
+  const s = val.trim()
+  if (!s || BLANK.test(s)) return null
+  return s
+}
+
+const line1 = computed(() => {
+  const parts = [visible(props.product.reference), visible(props.product.name)].filter(Boolean)
+  return parts.join(' · ')
+})
+
+const line2 = computed(() => {
+  const parts = [visible(props.product.measurements), visible(props.product.quality)].filter(Boolean)
+  return parts.join(' · ')
+})
 </script>
 
 <template>
@@ -19,9 +37,9 @@ const quantity = computed(() => cart.getQuantity(props.product.id))
         class="card-img"
       />
       <div v-else class="card-img-placeholder">—</div>
-      <div class="card-overlay">
-        <p class="overlay-line1">{{ product.reference }} · {{ product.name }}</p>
-        <p class="overlay-line2">{{ product.measurements }} · {{ product.quality }}</p>
+      <div v-if="line1 || line2" class="card-overlay">
+        <p v-if="line1" class="overlay-line1">{{ line1 }}</p>
+        <p v-if="line2" class="overlay-line2">{{ line2 }}</p>
       </div>
     </div>
     <div class="card-qty">
@@ -75,13 +93,20 @@ const quantity = computed(() => cart.getQuantity(props.product.id))
 .overlay-line2 {
   color: #fff;
   font-size: 0.72rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
 }
-.overlay-line1 { font-weight: 600; }
+.overlay-line1 {
+  font-weight: 600;
+  -webkit-line-clamp: 2;
+}
+.overlay-line2 {
+  -webkit-line-clamp: 2;
+}
 .card-qty {
   display: flex;
   justify-content: center;
