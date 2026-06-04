@@ -3,7 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCatalogStore } from '../../stores/catalog'
 import { useProductStore } from '../../stores/products'
-import type { Catalog } from '../../types'
+import ProductModal from '../../components/owner/ProductModal.vue'
+import type { Catalog, Product } from '../../types'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,6 +13,8 @@ const productStore = useProductStore()
 
 const catalog = ref<Catalog | null>(null)
 const loading = ref(true)
+const showModal = ref(false)
+const selectedProduct = ref<Product | undefined>(undefined)
 
 const publicLink = computed(() =>
   catalog.value ? `${window.location.origin}/c/${catalog.value.slug}` : ''
@@ -34,7 +37,7 @@ onMounted(async () => {
   }
 })
 
-async function toggle() {
+async function toggleCatalog() {
   if (!catalog.value) return
   const next = !catalog.value.is_active
   try {
@@ -48,6 +51,24 @@ async function toggle() {
 function copyLink() {
   navigator.clipboard.writeText(publicLink.value)
 }
+
+function openCreate() {
+  selectedProduct.value = undefined
+  showModal.value = true
+}
+
+function openEdit(product: Product) {
+  selectedProduct.value = product
+  showModal.value = true
+}
+
+async function toggleProduct(product: Product) {
+  try {
+    await productStore.toggleProductActive(product.id, !product.is_active)
+  } catch {
+    // leave state unchanged on failure
+  }
+}
 </script>
 
 <template>
@@ -60,12 +81,10 @@ function copyLink() {
         <h1>{{ catalog.name }}</h1>
       </div>
       <div class="header-actions">
-        <button @click="toggle">
+        <button @click="toggleCatalog">
           {{ catalog.is_active ? 'Desactivar' : 'Activar' }}
         </button>
-        <router-link :to="`/catalogs/${catalog.id}/products/new`">
-          <button class="primary">+ Agregar producto</button>
-        </router-link>
+        <button class="primary" @click="openCreate">+ Agregar producto</button>
       </div>
     </div>
 
@@ -90,10 +109,15 @@ function copyLink() {
             <th>Nombre</th>
             <th>Medidas</th>
             <th>Calidad</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="product in productStore.products" :key="product.id">
+          <tr
+            v-for="product in productStore.products"
+            :key="product.id"
+            :class="{ inactive: !product.is_active }"
+          >
             <td>
               <img v-if="product.image_url" :src="product.image_url" class="thumb" alt="" />
               <span v-else class="no-img">—</span>
@@ -102,10 +126,24 @@ function copyLink() {
             <td>{{ product.name }}</td>
             <td>{{ product.measurements }}</td>
             <td>{{ product.quality }}</td>
+            <td class="actions-cell">
+              <button @click="openEdit(product)">Editar</button>
+              <button @click="toggleProduct(product)">
+                {{ product.is_active ? 'Desactivar' : 'Activar' }}
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
+
+    <ProductModal
+      v-if="showModal && catalog"
+      :product="selectedProduct"
+      :catalog-id="catalog.id"
+      @close="showModal = false"
+      @saved="showModal = false"
+    />
   </div>
 </template>
 
@@ -160,4 +198,6 @@ code { flex: 1; font-size: 0.8rem; color: #555; word-break: break-all; }
 .thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
 .no-img { color: #d1d5db; }
 .empty { color: #9ca3af; }
+tr.inactive { opacity: 0.45; }
+.actions-cell { display: flex; gap: 0.4rem; white-space: nowrap; }
 </style>
