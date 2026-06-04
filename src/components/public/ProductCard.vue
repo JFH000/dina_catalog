@@ -21,35 +21,12 @@ const refText  = computed(() => visible(props.product.reference))
 const nameText = computed(() => visible(props.product.name))
 const measText = computed(() => visible(props.product.measurements))
 const qualText = computed(() => visible(props.product.quality))
-
-let pressTimer: number | null = null
-let touchMoved = false
-
-function onTouchStart() {
-  touchMoved = false
-  pressTimer = window.setTimeout(() => {
-    if (!touchMoved) showDetail.value = true
-  }, 500)
-}
-function onTouchEnd() {
-  if (pressTimer !== null) { clearTimeout(pressTimer); pressTimer = null }
-}
-function onTouchMove() {
-  touchMoved = true
-  if (pressTimer !== null) { clearTimeout(pressTimer); pressTimer = null }
-}
 </script>
 
 <template>
   <div class="product-card">
-    <!-- image area with controls overlaid -->
-    <div
-      class="card-image"
-      @touchstart.passive="onTouchStart"
-      @touchend="onTouchEnd"
-      @touchmove.passive="onTouchMove"
-      @contextmenu.prevent
-    >
+    <!-- tap image to open detail -->
+    <div class="card-image" @click="showDetail = true" @contextmenu.prevent>
       <img
         v-if="product.image_url"
         :src="product.image_url"
@@ -59,26 +36,20 @@ function onTouchMove() {
       />
       <div v-else class="card-placeholder">—</div>
 
-      <!-- quantity badge top-right -->
       <span v-if="quantity > 0" class="qty-badge">{{ quantity }}</span>
 
-      <!-- remove: only when qty > 0, bottom-left -->
       <button
         v-if="quantity > 0"
         class="btn-remove"
         @click.stop="cart.removeItem(product.id)"
-        @touchstart.stop
       >−</button>
 
-      <!-- add: always, bottom-right -->
       <button
         class="btn-add"
         @click.stop="cart.addItem(product)"
-        @touchstart.stop
       >+</button>
     </div>
 
-    <!-- info section below image -->
     <div class="card-info">
       <p v-if="refText"  class="info-ref">Ref. {{ refText }}</p>
       <p v-if="nameText" class="info-name">{{ nameText }}</p>
@@ -126,12 +97,12 @@ function onTouchMove() {
   user-select: none;
 }
 
-/* ── image area ── */
 .card-image {
   position: relative;
   aspect-ratio: 1 / 1;
   background: #f3f4f6;
   flex-shrink: 0;
+  cursor: pointer;
 }
 .card-img {
   width: 100%;
@@ -150,7 +121,6 @@ function onTouchMove() {
   font-size: 2rem;
 }
 
-/* quantity badge — top-right */
 .qty-badge {
   position: absolute;
   top: 5px;
@@ -163,9 +133,9 @@ function onTouchMove() {
   pointer-events: none;
 }
 
-/* action buttons — bottom corners */
-.btn-remove,
-.btn-add {
+/* Use .card-image prefix to beat the global button:hover specificity */
+.card-image .btn-remove,
+.card-image .btn-add {
   position: absolute;
   bottom: 7px;
   width: 30px;
@@ -180,13 +150,15 @@ function onTouchMove() {
   cursor: pointer;
   padding: 0;
   box-shadow: 0 2px 6px rgba(0,0,0,0.22);
+  transition: opacity 0.1s;
 }
-.btn-remove { left: 7px;  background: #ef4444; color: #fff; }
-.btn-add    { right: 7px; background: #16a34a; color: #fff; }
-.btn-remove:active { background: #dc2626; }
-.btn-add:active    { background: #15803d; }
+.card-image .btn-remove,
+.card-image .btn-remove:hover { left: 7px;  background: #ef4444; color: #fff; }
+.card-image .btn-add,
+.card-image .btn-add:hover    { right: 7px; background: #16a34a; color: #fff; }
+.card-image .btn-remove:active { opacity: 0.8; }
+.card-image .btn-add:active    { opacity: 0.8; }
 
-/* ── info area ── */
 .card-info {
   padding: 0.4rem 0.45rem 0.45rem;
   display: flex;
@@ -256,11 +228,7 @@ function onTouchMove() {
   overflow: hidden;
   flex-shrink: 0;
 }
-.pdl-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
+.pdl-img { width: 100%; height: 100%; object-fit: contain; }
 .pdl-no-img {
   width: 100%;
   height: 100%;
@@ -284,11 +252,7 @@ function onTouchMove() {
   display: flex;
   justify-content: center;
 }
-.pdl-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
+.pdl-controls { display: flex; align-items: center; gap: 0.5rem; }
 .pdl-btn {
   width: 44px;
   height: 44px;
