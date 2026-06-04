@@ -15,9 +15,10 @@ function normalise(value: string): string {
 
 export function parseCatalogCsv(text: string): CsvRow[] {
   const lines = text.split(/\r?\n/).filter(line => line.trim() !== '')
-  if (lines.length === 0) return []
+  const firstLine = lines[0]
+  if (!firstLine) return []
 
-  const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
+  const headers = firstLine.split(',').map(h => h.trim().toLowerCase())
 
   const missing = REQUIRED_COLUMNS.filter(col => !headers.includes(col))
   if (missing.length > 0) {
