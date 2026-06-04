@@ -22,6 +22,7 @@ export interface Product {
   measurements: string
   quality: string
   image_url: string | null
+  is_active: boolean
   created_at: string
 }
 
