@@ -14,6 +14,15 @@ const whatsappNumber = ref('')
 const error = ref('')
 const loading = ref(false)
 
+function toggleMode() {
+  isSignUp.value = !isSignUp.value
+  error.value = ''
+  email.value = ''
+  password.value = ''
+  fullName.value = ''
+  whatsappNumber.value = ''
+}
+
 async function submit() {
   loading.value = true
   error.value = ''
@@ -54,7 +63,7 @@ async function submit() {
         </button>
       </form>
       <p class="toggle-link">
-        <a href="#" @click.prevent="isSignUp = !isSignUp; error = ''">
+        <a href="#" @click.prevent="toggleMode">
           {{ isSignUp ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate' }}
         </a>
       </p>

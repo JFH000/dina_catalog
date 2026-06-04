@@ -21,7 +21,7 @@ async function create() {
     // Always store an effective whatsapp_number so the public view can use it
     // without querying the profiles table (which has owner-only RLS).
     const effectiveWhatsapp =
-      whatsappOverride.value.trim() || auth.profile?.whatsapp_number || ''
+      whatsappOverride.value.trim() || auth.profile?.whatsapp_number || undefined
     const catalog = await catalogStore.createCatalog(name.value.trim(), effectiveWhatsapp)
     router.push(`/catalogs/${catalog.id}`)
   } catch (e: any) {

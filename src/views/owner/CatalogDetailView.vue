@@ -18,22 +18,31 @@ const publicLink = computed(() =>
 )
 
 onMounted(async () => {
-  const id = route.params.id as string
-  let found = catalogStore.catalogs.find(c => c.id === id)
-  if (!found) {
-    await catalogStore.fetchMyCatalogs()
-    found = catalogStore.catalogs.find(c => c.id === id)
+  try {
+    const id = route.params.id as string
+    let found = catalogStore.catalogs.find(c => c.id === id)
+    if (!found) {
+      await catalogStore.fetchMyCatalogs()
+      found = catalogStore.catalogs.find(c => c.id === id)
+    }
+    catalog.value = found ?? null
+    if (catalog.value) await productStore.fetchByCatalog(id)
+  } catch {
+    catalog.value = null
+  } finally {
+    loading.value = false
   }
-  catalog.value = found ?? null
-  if (catalog.value) await productStore.fetchByCatalog(id)
-  loading.value = false
 })
 
 async function toggle() {
   if (!catalog.value) return
   const next = !catalog.value.is_active
-  await catalogStore.toggleActive(catalog.value.id, next)
-  catalog.value.is_active = next
+  try {
+    await catalogStore.toggleActive(catalog.value.id, next)
+    catalog.value.is_active = next
+  } catch {
+    // leave state unchanged on failure
+  }
 }
 
 function copyLink() {

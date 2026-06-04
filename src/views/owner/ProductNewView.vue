@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProductStore } from '../../stores/products'
 
@@ -18,12 +18,20 @@ const imagePreview = ref('')
 const error = ref('')
 const loading = ref(false)
 
+let currentBlobUrl = ''
+
 function onFileChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
+  if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl)
   imageFile.value = file
-  imagePreview.value = URL.createObjectURL(file)
+  currentBlobUrl = URL.createObjectURL(file)
+  imagePreview.value = currentBlobUrl
 }
+
+onUnmounted(() => {
+  if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl)
+})
 
 async function save() {
   loading.value = true

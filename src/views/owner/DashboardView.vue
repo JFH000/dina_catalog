@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCatalogStore } from '../../stores/catalog'
 
@@ -7,11 +7,25 @@ const router = useRouter()
 const catalogStore = useCatalogStore()
 
 const publicBase = computed(() => window.location.origin)
+const loading = ref(true)
+const fetchError = ref('')
 
-onMounted(() => catalogStore.fetchMyCatalogs())
+onMounted(async () => {
+  try {
+    await catalogStore.fetchMyCatalogs()
+  } catch {
+    fetchError.value = 'No se pudieron cargar los catálogos. Intenta recargar la página.'
+  } finally {
+    loading.value = false
+  }
+})
 
 async function toggleActive(id: string, current: boolean) {
-  await catalogStore.toggleActive(id, !current)
+  try {
+    await catalogStore.toggleActive(id, !current)
+  } catch {
+    // store state unchanged on failure — no visual glitch
+  }
 }
 
 function copyLink(slug: string) {
@@ -28,11 +42,13 @@ function copyLink(slug: string) {
       </router-link>
     </div>
 
-    <p v-if="catalogStore.catalogs.length === 0" class="empty">
+    <p v-if="loading" class="state">Cargando...</p>
+    <p v-else-if="fetchError" class="error">{{ fetchError }}</p>
+    <p v-else-if="catalogStore.catalogs.length === 0" class="empty">
       Aún no tienes catálogos. ¡Crea el primero!
     </p>
 
-    <div class="catalog-list">
+    <div v-else class="catalog-list">
       <div
         v-for="catalog in catalogStore.catalogs"
         :key="catalog.id"
@@ -88,5 +104,6 @@ function copyLink(slug: string) {
 .active { background: #dcfce7; color: #166534; }
 .inactive { background: #f3f4f6; color: #6b7280; }
 .slug { color: #9ca3af; font-size: 0.8rem; margin-top: 0.4rem; }
+.state { color: #9ca3af; margin-top: 1rem; }
 .empty { color: #9ca3af; margin-top: 3rem; text-align: center; }
 </style>
