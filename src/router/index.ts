@@ -24,11 +24,6 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
-      path: '/catalogs/:id/products/new',
-      component: () => import('../views/owner/ProductNewView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
       path: '/c/:slug',
       component: () => import('../views/public/CatalogPublicView.vue'),
     },
