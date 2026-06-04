@@ -10,6 +10,13 @@ const publicBase = computed(() => window.location.origin)
 const loading = ref(true)
 const fetchError = ref('')
 const copiedId = ref<string | null>(null)
+const searchQuery = ref('')
+
+const filteredCatalogs = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return catalogStore.catalogs
+  return catalogStore.catalogs.filter(c => c.name.toLowerCase().includes(q))
+})
 
 onMounted(async () => {
   try {
@@ -51,9 +58,19 @@ function copyLink(slug: string, id: string) {
       Aún no tienes catálogos. ¡Crea el primero!
     </p>
 
-    <div v-else class="catalog-list">
-      <div
-        v-for="catalog in catalogStore.catalogs"
+    <template v-else>
+      <input
+        v-model="searchQuery"
+        type="search"
+        class="search-input"
+        placeholder="Buscar catálogo por nombre..."
+      />
+      <p v-if="filteredCatalogs.length === 0" class="empty">
+        Sin resultados para "{{ searchQuery }}"
+      </p>
+      <div v-else class="catalog-list">
+        <div
+          v-for="catalog in filteredCatalogs"
         :key="catalog.id"
         class="catalog-card"
         @click="router.push(`/catalogs/${catalog.id}`)"
@@ -74,9 +91,10 @@ function copyLink(slug: string, id: string) {
             </button>
           </div>
         </div>
-        <p class="slug">/c/{{ catalog.slug }}</p>
+          <p class="slug">/c/{{ catalog.slug }}</p>
+        </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -114,6 +132,7 @@ function copyLink(slug: string, id: string) {
 .state { color: #9ca3af; margin-top: 1rem; }
 .empty { color: #9ca3af; margin-top: 3rem; text-align: center; }
 button.copied { background: #dcfce7; color: #166534; border-color: #86efac; }
+.search-input { margin-bottom: 1rem; }
 
 @media (max-width: 480px) {
   .header { flex-direction: column; align-items: stretch; gap: 0.75rem; }

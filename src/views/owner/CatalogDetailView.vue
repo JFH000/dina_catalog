@@ -21,6 +21,15 @@ const importing = ref(false)
 const importMessage = ref('')
 const importError = ref(false)
 const linkCopied = ref(false)
+const searchQuery = ref('')
+
+const filteredProducts = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return productStore.products
+  return productStore.products.filter(p =>
+    p.name.toLowerCase().includes(q) || p.reference.toLowerCase().includes(q)
+  )
+})
 
 const publicLink = computed(() =>
   catalog.value ? `${window.location.origin}/c/${catalog.value.slug}` : ''
@@ -141,7 +150,17 @@ async function onCsvChange(e: Event) {
       <p v-if="productStore.products.length === 0" class="empty">
         Aún no hay productos. ¡Agrega el primero!
       </p>
-      <table v-else class="product-table">
+      <template v-else>
+        <input
+          v-model="searchQuery"
+          type="search"
+          class="search-input"
+          placeholder="Buscar por nombre o referencia..."
+        />
+        <p v-if="filteredProducts.length === 0" class="empty">
+          Sin resultados para "{{ searchQuery }}"
+        </p>
+        <table v-else class="product-table">
         <thead>
           <tr>
             <th>Imagen</th>
@@ -154,7 +173,7 @@ async function onCsvChange(e: Event) {
         </thead>
         <tbody>
           <tr
-            v-for="product in productStore.products"
+            v-for="product in filteredProducts"
             :key="product.id"
             :class="{ inactive: !product.is_active }"
           >
@@ -175,6 +194,7 @@ async function onCsvChange(e: Event) {
           </tr>
         </tbody>
       </table>
+      </template>
     </div>
 
     <ProductModal
@@ -222,6 +242,7 @@ code { flex: 1; min-width: 0; font-size: 0.8rem; color: #555; word-break: break-
 .active { background: #dcfce7; color: #166534; }
 .inactive { background: #f3f4f6; color: #6b7280; }
 .products-section h2 { margin-bottom: 1rem; }
+.search-input { margin-bottom: 1rem; }
 .product-table {
   width: 100%;
   border-collapse: collapse;

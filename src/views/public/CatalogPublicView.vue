@@ -17,10 +17,16 @@ const cart = useCartStore()
 const catalog = ref<Catalog | null>(null)
 const loading = ref(true)
 const showModal = ref(false)
+const searchQuery = ref('')
 
-const activeProducts = computed(() =>
-  productStore.products.filter(p => p.is_active)
-)
+const visibleProducts = computed(() => {
+  const active = productStore.products.filter(p => p.is_active)
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q) return active
+  return active.filter(p =>
+    p.name.toLowerCase().includes(q) || p.reference.toLowerCase().includes(q)
+  )
+})
 
 onMounted(async () => {
   const slug = route.params.slug as string
@@ -52,17 +58,28 @@ onMounted(async () => {
   <div v-else class="catalog-page">
     <h1 class="catalog-title">{{ catalog.name }}</h1>
 
-    <p v-if="activeProducts.length === 0" class="empty">
+    <p v-if="productStore.products.filter(p => p.is_active).length === 0" class="empty">
       Este catálogo no tiene productos todavía.
     </p>
 
-    <div v-else class="product-grid">
-      <ProductCard
-        v-for="product in activeProducts"
-        :key="product.id"
-        :product="product"
+    <template v-else>
+      <input
+        v-model="searchQuery"
+        type="search"
+        class="search-input"
+        placeholder="Buscar por nombre o referencia..."
       />
-    </div>
+      <p v-if="visibleProducts.length === 0" class="empty">
+        Sin resultados para "{{ searchQuery }}"
+      </p>
+      <div v-else class="product-grid">
+        <ProductCard
+          v-for="product in visibleProducts"
+          :key="product.id"
+          :product="product"
+        />
+      </div>
+    </template>
 
     <CartFloat @open-modal="showModal = true" />
 
@@ -79,7 +96,8 @@ onMounted(async () => {
 .state { text-align: center; margin-top: 4rem; color: #6b7280; }
 .state h2 { margin-bottom: 0.5rem; font-size: 1.3rem; }
 .catalog-page { padding-bottom: 6rem; }
-.catalog-title { font-size: 1.75rem; margin-bottom: 1.5rem; }
+.catalog-title { font-size: 1.75rem; margin-bottom: 1rem; }
+.search-input { margin-bottom: 1rem; }
 .product-grid {
   display: grid;
   gap: 0.6rem;
