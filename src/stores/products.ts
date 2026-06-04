@@ -7,7 +7,7 @@ export const useProductStore = defineStore('products', () => {
   const products = ref<Product[]>([])
 
   async function fetchByCatalog(catalogId: string) {
-    products.value = []  // clear stale data before fetching
+    products.value = []
     const { data, error } = await supabase
       .from('products')
       .select('*')
@@ -47,5 +47,49 @@ export const useProductStore = defineStore('products', () => {
     return data
   }
 
-  return { products, fetchByCatalog, addProduct }
+  async function updateProduct(
+    id: string,
+    fields: { reference: string; name: string; measurements: string; quality: string },
+    imageFile?: File
+  ): Promise<void> {
+    const updateData: Partial<Product> = { ...fields }
+
+    if (imageFile) {
+      const existing = products.value.find(p => p.id === id)
+      const catalogId = existing?.catalog_id ?? 'unknown'
+      const ext = imageFile.name.split('.').pop() ?? 'jpg'
+      const path = `${catalogId}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(path, imageFile)
+      if (uploadError) throw uploadError
+      const { data: urlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(path)
+      updateData.image_url = urlData.publicUrl
+    }
+
+    const { data, error } = await supabase
+      .from('products')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+
+    const idx = products.value.findIndex(p => p.id === id)
+    if (idx !== -1) products.value[idx] = data
+  }
+
+  async function toggleProductActive(id: string, isActive: boolean): Promise<void> {
+    const { error } = await supabase
+      .from('products')
+      .update({ is_active: isActive })
+      .eq('id', id)
+    if (error) throw error
+    const product = products.value.find(p => p.id === id)
+    if (product) product.is_active = isActive
+  }
+
+  return { products, fetchByCatalog, addProduct, updateProduct, toggleProductActive }
 })
