@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
 import type { Product } from '../types'
+import type { CsvRow } from '../lib/csv'
 
 export const useProductStore = defineStore('products', () => {
   const products = ref<Product[]>([])
@@ -92,5 +93,19 @@ export const useProductStore = defineStore('products', () => {
     if (product) product.is_active = isActive
   }
 
-  return { products, fetchByCatalog, addProduct, updateProduct, toggleProductActive }
+  async function importProducts(catalogId: string, rows: CsvRow[]): Promise<number> {
+    let count = 0
+    for (const row of rows) {
+      await addProduct(catalogId, {
+        reference: row.referencia,
+        name: row.nombre,
+        measurements: row.medidas,
+        quality: row.calidad,
+      })
+      count++
+    }
+    return count
+  }
+
+  return { products, fetchByCatalog, addProduct, updateProduct, toggleProductActive, importProducts }
 })
