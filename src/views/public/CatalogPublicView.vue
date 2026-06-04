@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useCatalogStore } from '../../stores/catalog'
 import { useProductStore } from '../../stores/products'
+import { useCartStore } from '../../stores/cart'
 import ProductCard from '../../components/public/ProductCard.vue'
 import CartFloat from '../../components/public/CartFloat.vue'
 import OrderModal from '../../components/public/OrderModal.vue'
@@ -11,6 +12,7 @@ import type { Catalog } from '../../types'
 const route = useRoute()
 const catalogStore = useCatalogStore()
 const productStore = useProductStore()
+const cart = useCartStore()
 
 const catalog = ref<Catalog | null>(null)
 const loading = ref(true)
@@ -28,6 +30,7 @@ onMounted(async () => {
     catalog.value = null
   }
   if (catalog.value) {
+    cart.loadForCatalog(catalog.value.id)
     try {
       await productStore.fetchByCatalog(catalog.value.id)
     } catch {
@@ -79,14 +82,11 @@ onMounted(async () => {
 .catalog-title { font-size: 1.75rem; margin-bottom: 1.5rem; }
 .product-grid {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(2, 1fr);
-}
-@media (min-width: 480px) {
-  .product-grid { grid-template-columns: repeat(3, 1fr); }
+  gap: 0.6rem;
+  grid-template-columns: repeat(3, 1fr);
 }
 @media (min-width: 768px) {
-  .product-grid { grid-template-columns: repeat(4, 1fr); }
+  .product-grid { gap: 1rem; grid-template-columns: repeat(4, 1fr); }
 }
 .empty { color: #9ca3af; margin-top: 2rem; text-align: center; }
 </style>

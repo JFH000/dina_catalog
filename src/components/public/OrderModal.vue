@@ -13,6 +13,13 @@ const emit = defineEmits<{ close: [] }>()
 
 const cart = useCartStore()
 const customerName = ref('')
+
+function confirmClear() {
+  if (confirm('¿Eliminar todos los productos del pedido?')) {
+    cart.clear()
+    emit('close')
+  }
+}
 const customerEmail = ref('')
 const customerPhone = ref('')
 const loading = ref(false)
@@ -59,6 +66,11 @@ async function send() {
       <div class="modal-header">
         <h2>Tu pedido</h2>
         <button class="close-btn" :disabled="loading" @click="!loading && emit('close')">✕</button>
+      </div>
+
+      <div class="order-items-header">
+        <span class="items-count">{{ cart.items.length }} producto{{ cart.items.length !== 1 ? 's' : '' }}</span>
+        <button class="clear-all-btn" @click="confirmClear">Borrar todo</button>
       </div>
 
       <div class="order-items">
@@ -120,6 +132,21 @@ async function send() {
 }
 .modal-header h2 { font-size: 1.2rem; }
 .close-btn { background: none; border: none; font-size: 1.1rem; color: #9ca3af; padding: 0; }
+.order-items-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+.items-count { font-size: 0.85rem; color: #6b7280; }
+.clear-all-btn {
+  font-size: 0.8rem;
+  color: #dc2626;
+  border-color: transparent;
+  background: none;
+  padding: 0.25rem 0.5rem;
+}
+.clear-all-btn:hover { background: #fef2f2; border-color: transparent; }
 .order-items { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
 .order-item {
   display: flex;
