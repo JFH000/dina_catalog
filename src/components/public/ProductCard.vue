@@ -17,17 +17,9 @@ function visible(val: string | null | undefined): string | null {
   return s
 }
 
-const line1 = computed(() => {
-  const parts = [visible(props.product.reference), visible(props.product.name)].filter(Boolean)
-  return parts.join(' · ')
-})
+const refText  = computed(() => visible(props.product.reference))
+const nameText = computed(() => visible(props.product.name))
 
-const line2 = computed(() => {
-  const parts = [visible(props.product.measurements), visible(props.product.quality)].filter(Boolean)
-  return parts.join(' · ')
-})
-
-// Long press detection
 let pressTimer: number | null = null
 let touchMoved = false
 
@@ -37,11 +29,9 @@ function onTouchStart() {
     if (!touchMoved) showDetail.value = true
   }, 500)
 }
-
 function onTouchEnd() {
   if (pressTimer !== null) { clearTimeout(pressTimer); pressTimer = null }
 }
-
 function onTouchMove() {
   touchMoved = true
   if (pressTimer !== null) { clearTimeout(pressTimer); pressTimer = null }
@@ -49,34 +39,36 @@ function onTouchMove() {
 </script>
 
 <template>
-  <div class="product-card">
-    <div
-      class="card-image-wrap"
-      @touchstart.passive="onTouchStart"
-      @touchend="onTouchEnd"
-      @touchmove.passive="onTouchMove"
-      @contextmenu.prevent
-    >
-      <img
-        v-if="product.image_url"
-        :src="product.image_url"
-        :alt="product.name"
-        class="card-img"
-        draggable="false"
-      />
-      <div v-else class="card-img-placeholder">—</div>
-      <div v-if="line1 || line2" class="card-overlay">
-        <p v-if="line1" class="overlay-line1">{{ line1 }}</p>
-        <p v-if="line2" class="overlay-line2">{{ line2 }}</p>
+  <div
+    class="product-card"
+    @touchstart.passive="onTouchStart"
+    @touchend="onTouchEnd"
+    @touchmove.passive="onTouchMove"
+    @contextmenu.prevent
+  >
+    <img
+      v-if="product.image_url"
+      :src="product.image_url"
+      :alt="product.name"
+      class="card-img"
+      draggable="false"
+    />
+    <div v-else class="card-placeholder">—</div>
+
+    <div class="card-bottom">
+      <div class="card-text">
+        <span v-if="refText"  class="text-ref">{{ refText }}</span>
+        <span v-if="nameText" class="text-name">{{ nameText }}</span>
       </div>
-    </div>
-    <div class="card-qty">
-      <div v-if="quantity > 0" class="qty-controls">
-        <button class="qty-btn" @click="cart.removeItem(product.id)">−</button>
-        <span class="qty-number">{{ quantity }}</span>
-        <button class="qty-btn" @click="cart.addItem(product)">+</button>
+
+      <div class="card-qty">
+        <template v-if="quantity > 0">
+          <button class="btn-minus" @click.stop="cart.removeItem(product.id)">−</button>
+          <span class="qty-count">{{ quantity }}</span>
+          <button class="btn-plus"  @click.stop="cart.addItem(product)">+</button>
+        </template>
+        <button v-else class="btn-add" @click.stop="cart.addItem(product)">+</button>
       </div>
-      <button v-else class="add-btn" @click="cart.addItem(product)">+</button>
     </div>
   </div>
 
@@ -85,25 +77,20 @@ function onTouchMove() {
       <div class="pdl-modal">
         <button class="pdl-close" @click="showDetail = false">✕</button>
         <div class="pdl-image-wrap">
-          <img
-            v-if="product.image_url"
-            :src="product.image_url"
-            :alt="product.name"
-            class="pdl-img"
-          />
+          <img v-if="product.image_url" :src="product.image_url" :alt="product.name" class="pdl-img" />
           <div v-else class="pdl-no-img">—</div>
         </div>
         <div class="pdl-info">
-          <p v-if="visible(product.reference)" class="pdl-ref">{{ visible(product.reference) }}</p>
-          <p v-if="visible(product.name)" class="pdl-name">{{ visible(product.name) }}</p>
+          <p v-if="visible(product.reference)"   class="pdl-ref">{{ visible(product.reference) }}</p>
+          <p v-if="visible(product.name)"        class="pdl-name">{{ visible(product.name) }}</p>
           <p v-if="visible(product.measurements)" class="pdl-field">{{ visible(product.measurements) }}</p>
-          <p v-if="visible(product.quality)" class="pdl-field">{{ visible(product.quality) }}</p>
+          <p v-if="visible(product.quality)"     class="pdl-field">{{ visible(product.quality) }}</p>
         </div>
         <div class="pdl-qty">
           <div v-if="quantity > 0" class="pdl-controls">
             <button class="pdl-btn" @click="cart.removeItem(product.id)">−</button>
             <span class="pdl-number">{{ quantity }}</span>
-            <button class="pdl-btn" @click="cart.addItem(product)">+</button>
+            <button class="pdl-btn pdl-btn-add" @click="cart.addItem(product)">+</button>
           </div>
           <button v-else class="pdl-add-btn" @click="cart.addItem(product)">Agregar al pedido</button>
         </div>
@@ -114,111 +101,137 @@ function onTouchMove() {
 
 <style scoped>
 .product-card {
-  display: flex;
-  flex-direction: column;
-}
-.card-image-wrap {
   position: relative;
-  aspect-ratio: 1 / 1;
-  background: #fff;
-  border-radius: 8px;
+  aspect-ratio: 3 / 4;
+  background: #f3f4f6;
+  border-radius: 10px;
   overflow: hidden;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 5px rgba(0,0,0,0.1);
   -webkit-touch-callout: none;
   user-select: none;
 }
+
 .card-img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
   pointer-events: none;
 }
-.card-img-placeholder {
-  width: 100%;
-  height: 100%;
+
+.card-placeholder {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f3f4f6;
   color: #d1d5db;
-  font-size: 1.5rem;
+  font-size: 2rem;
 }
-.card-overlay {
+
+/* gradient strip at the bottom */
+.card-bottom {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(0, 0, 0, 0.55);
-  padding: 0.4rem 0.6rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.38) 55%, transparent 100%);
+  padding: 1.4rem 0.45rem 0.45rem;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.3rem;
 }
-.overlay-line1,
-.overlay-line2 {
+
+.card-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+
+.text-ref,
+.text-name {
+  display: block;
   color: #fff;
-  font-size: 0.72rem;
-  margin: 0;
-  line-height: 1.35;
+  font-size: 0.6rem;
+  line-height: 1.25;
+  white-space: nowrap;
   overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  word-break: break-word;
+  text-overflow: ellipsis;
 }
-.overlay-line1 {
-  font-weight: 600;
-  -webkit-line-clamp: 2;
-}
-.overlay-line2 {
-  -webkit-line-clamp: 2;
-}
+.text-ref  { font-weight: 700; }
+.text-name { opacity: 0.85; }
+
+/* quantity controls */
 .card-qty {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 0.4rem 0;
-  min-height: 2.5rem;
-}
-.qty-controls {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.18rem;
 }
-.qty-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
+
+.btn-add {
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.qty-number {
-  font-size: 1.4rem;
-  font-weight: 700;
-  min-width: 2rem;
-  text-align: center;
-  color: #18a34a;
-}
-.add-btn {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border-radius: 50%;
-  font-size: 1.25rem;
   background: #18a34a;
+  border: none;
   color: #fff;
-  border-color: #18a34a;
+  font-size: 1rem;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
 }
-.add-btn:hover { background: #16923f; }
+.btn-add:active { background: #16923f; }
+
+.btn-minus,
+.btn-plus {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+.btn-minus {
+  background: rgba(255,255,255,0.2);
+  border: 1px solid rgba(255,255,255,0.45);
+  color: #fff;
+}
+.btn-plus {
+  background: #18a34a;
+  border: none;
+  color: #fff;
+}
+.btn-minus:active { background: rgba(255,255,255,0.35); }
+.btn-plus:active  { background: #16923f; }
+
+.qty-count {
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-width: 0.9rem;
+  text-align: center;
+  line-height: 1;
+}
 </style>
 
 <style>
 .pdl-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0,0,0,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -251,6 +264,7 @@ function onTouchMove() {
   align-items: center;
   justify-content: center;
   z-index: 1;
+  cursor: pointer;
 }
 .pdl-image-wrap {
   width: 100%;
@@ -280,22 +294,9 @@ function onTouchMove() {
   flex-direction: column;
   gap: 0.2rem;
 }
-.pdl-ref {
-  font-size: 0.8rem;
-  color: #9ca3af;
-  margin: 0;
-}
-.pdl-name {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: #111;
-  margin: 0;
-}
-.pdl-field {
-  font-size: 0.9rem;
-  color: #6b7280;
-  margin: 0;
-}
+.pdl-ref   { font-size: 0.8rem;  color: #9ca3af; margin: 0; }
+.pdl-name  { font-size: 1.05rem; font-weight: 600; color: #111; margin: 0; }
+.pdl-field { font-size: 0.9rem;  color: #6b7280; margin: 0; }
 .pdl-qty {
   padding: 1rem 1.25rem 1.25rem;
   display: flex;
@@ -317,7 +318,10 @@ function onTouchMove() {
   background: #f3f4f6;
   border: 1px solid #e5e7eb;
   cursor: pointer;
+  padding: 0;
 }
+.pdl-btn-add { background: #18a34a; border-color: #18a34a; color: #fff; }
+.pdl-btn-add:hover { background: #16923f; }
 .pdl-number {
   font-size: 1.75rem;
   font-weight: 700;
