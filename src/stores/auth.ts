@@ -26,7 +26,7 @@ export const useAuthStore = defineStore('auth', () => {
       .from('profiles')
       .select('*')
       .eq('id', user.value.id)
-      .single()
+      .maybeSingle()
     profile.value = data
   }
 
