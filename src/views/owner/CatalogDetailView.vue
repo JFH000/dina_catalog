@@ -5,6 +5,7 @@ import { useCatalogStore } from '../../stores/catalog'
 import { useProductStore } from '../../stores/products'
 import ProductModal from '../../components/owner/ProductModal.vue'
 import type { Catalog, Product } from '../../types'
+import { parseCatalogCsv } from '../../lib/csv'
 
 const route = useRoute()
 const router = useRouter()
@@ -15,6 +16,10 @@ const catalog = ref<Catalog | null>(null)
 const loading = ref(true)
 const showModal = ref(false)
 const selectedProduct = ref<Product | undefined>(undefined)
+const csvInput = ref<HTMLInputElement | null>(null)
+const importing = ref(false)
+const importMessage = ref('')
+const importError = ref(false)
 
 const publicLink = computed(() =>
   catalog.value ? `${window.location.origin}/c/${catalog.value.slug}` : ''
@@ -69,6 +74,31 @@ async function toggleProduct(product: Product) {
     // leave state unchanged on failure
   }
 }
+
+async function onCsvChange(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  importMessage.value = ''
+  importError.value = false
+  importing.value = true
+  try {
+    const text = await file.text()
+    const rows = parseCatalogCsv(text)
+    if (rows.length === 0) {
+      importMessage.value = 'El CSV no tiene filas'
+      importError.value = true
+      return
+    }
+    const count = await productStore.importProducts(catalog.value!.id, rows)
+    importMessage.value = `${count} producto${count !== 1 ? 's' : ''} importado${count !== 1 ? 's' : ''}`
+  } catch (e: any) {
+    importMessage.value = e.message
+    importError.value = true
+  } finally {
+    importing.value = false
+    if (csvInput.value) csvInput.value.value = ''
+  }
+}
 </script>
 
 <template>
@@ -84,6 +114,10 @@ async function toggleProduct(product: Product) {
         <button @click="toggleCatalog">
           {{ catalog.is_active ? 'Desactivar' : 'Activar' }}
         </button>
+        <input ref="csvInput" type="file" accept=".csv" style="display:none" @change="onCsvChange" />
+        <button :disabled="importing" @click="csvInput?.click()">
+          {{ importing ? 'Importando...' : 'Importar CSV' }}
+        </button>
         <button class="primary" @click="openCreate">+ Agregar producto</button>
       </div>
     </div>
@@ -98,6 +132,7 @@ async function toggleProduct(product: Product) {
 
     <div class="products-section">
       <h2>Productos ({{ productStore.products.length }})</h2>
+      <p v-if="importMessage" :class="importError ? 'error' : 'import-msg'">{{ importMessage }}</p>
       <p v-if="productStore.products.length === 0" class="empty">
         Aún no hay productos. ¡Agrega el primero!
       </p>
@@ -198,6 +233,7 @@ code { flex: 1; font-size: 0.8rem; color: #555; word-break: break-all; }
 .thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
 .no-img { color: #d1d5db; }
 .empty { color: #9ca3af; }
+.import-msg { margin-bottom: 0.75rem; color: #166534; font-size: 0.9rem; }
 tr.inactive { opacity: 0.45; }
 .actions-cell { display: flex; gap: 0.4rem; white-space: nowrap; }
 </style>
