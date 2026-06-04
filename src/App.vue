@@ -25,7 +25,7 @@ async function logout() {
 
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; }
+body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; touch-action: manipulation; }
 .app { min-height: 100vh; }
 .nav {
   display: flex;

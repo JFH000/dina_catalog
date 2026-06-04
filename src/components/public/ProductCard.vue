@@ -125,7 +125,7 @@ const qualText = computed(() => visible(props.product.quality))
   position: absolute;
   top: 5px;
   right: 7px;
-  font-size: 1.4rem;
+  font-size: 1.8rem;
   font-weight: 800;
   line-height: 1;
   color: #16a34a;
