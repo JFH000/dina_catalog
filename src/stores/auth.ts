@@ -36,16 +36,14 @@ export const useAuthStore = defineStore('auth', () => {
     fullName: string,
     whatsappNumber: string
   ) {
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName, whatsapp_number: whatsappNumber },
+      },
+    })
     if (error) throw error
-    if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: data.user.id,
-        full_name: fullName,
-        whatsapp_number: whatsappNumber,
-      })
-      if (profileError) throw profileError
-    }
   }
 
   async function signIn(email: string, password: string) {
