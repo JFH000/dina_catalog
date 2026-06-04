@@ -20,14 +20,17 @@ onMounted(async () => {
   const slug = route.params.slug as string
   try {
     catalog.value = await catalogStore.fetchBySlug(slug)
-    if (catalog.value) {
-      await productStore.fetchByCatalog(catalog.value.id)
-    }
   } catch {
     catalog.value = null
-  } finally {
-    loading.value = false
   }
+  if (catalog.value) {
+    try {
+      await productStore.fetchByCatalog(catalog.value.id)
+    } catch {
+      // products failed — show catalog with empty product list
+    }
+  }
+  loading.value = false
 })
 </script>
 

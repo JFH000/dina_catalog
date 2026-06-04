@@ -19,6 +19,10 @@ const loading = ref(false)
 const error = ref('')
 
 async function send() {
+  if (!props.whatsappNumber) {
+    error.value = 'Este catálogo no tiene número de WhatsApp configurado.'
+    return
+  }
   loading.value = true
   error.value = ''
   try {
@@ -38,9 +42,9 @@ async function send() {
     })
     const url = buildWhatsAppUrl(props.whatsappNumber, message)
 
+    window.open(url, '_blank')
     cart.clear()
     emit('close')
-    window.open(url, '_blank')
   } catch {
     error.value = 'No se pudo guardar el pedido. Por favor intenta de nuevo.'
   } finally {
@@ -50,11 +54,11 @@ async function send() {
 </script>
 
 <template>
-  <div class="overlay" @click.self="emit('close')">
+  <div class="overlay" @click.self="!loading && emit('close')">
     <div class="modal">
       <div class="modal-header">
         <h2>Tu pedido</h2>
-        <button class="close-btn" @click="emit('close')">✕</button>
+        <button class="close-btn" :disabled="loading" @click="!loading && emit('close')">✕</button>
       </div>
 
       <div class="order-items">

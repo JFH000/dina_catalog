@@ -7,6 +7,7 @@ export const useProductStore = defineStore('products', () => {
   const products = ref<Product[]>([])
 
   async function fetchByCatalog(catalogId: string) {
+    products.value = []  // clear stale data before fetching
     const { data, error } = await supabase
       .from('products')
       .select('*')
