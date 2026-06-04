@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { useCartStore } from '../../stores/cart'
 import { supabase } from '../../lib/supabase'
-import { buildWhatsAppMessage, buildWhatsAppUrl } from '../../lib/whatsapp'
+import { buildWhatsAppMessage, buildWhatsAppUrl, productLabel } from '../../lib/whatsapp'
 import type { Catalog } from '../../types'
 
 const props = defineProps<{
@@ -63,10 +63,7 @@ async function send() {
 
       <div class="order-items">
         <div v-for="item in cart.items" :key="item.product.id" class="order-item">
-          <div class="item-info">
-            <span class="item-ref">[{{ item.product.reference }}]</span>
-            {{ item.product.name }}
-          </div>
+          <div class="item-info">{{ productLabel(item.product) }}</div>
           <span class="item-qty">x{{ item.quantity }}</span>
         </div>
       </div>
