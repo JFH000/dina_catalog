@@ -38,6 +38,10 @@ body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; }
 .nav a { text-decoration: none; color: #333; font-weight: 500; font-size: 0.95rem; }
 .nav a:hover { color: #18a34a; }
 main { padding: 2rem; max-width: 960px; margin: 0 auto; }
+@media (max-width: 600px) {
+  .nav { padding: 0.75rem 1rem; gap: 1rem; }
+  main { padding: 1rem; }
+}
 button {
   cursor: pointer;
   padding: 0.5rem 1rem;

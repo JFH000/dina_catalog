@@ -98,9 +98,11 @@ function copyLink(slug: string, id: string) {
 }
 .catalog-card:hover { box-shadow: 0 3px 12px rgba(0,0,0,0.1); }
 .card-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-.card-name { display: flex; align-items: center; gap: 0.5rem; }
+.card-name { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; }
+.card-name strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
 .badge {
+  white-space: nowrap;
   padding: 0.15rem 0.5rem;
   border-radius: 99px;
   font-size: 0.75rem;
@@ -112,4 +114,14 @@ function copyLink(slug: string, id: string) {
 .state { color: #9ca3af; margin-top: 1rem; }
 .empty { color: #9ca3af; margin-top: 3rem; text-align: center; }
 button.copied { background: #dcfce7; color: #166534; border-color: #86efac; }
+
+@media (max-width: 480px) {
+  .header { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+  .header button { width: 100%; }
+  .card-top { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .card-name { width: 100%; }
+  .card-name strong { white-space: normal; }
+  .card-actions { width: 100%; }
+  .card-actions button { flex: 1; }
+}
 </style>

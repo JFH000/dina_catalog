@@ -158,15 +158,15 @@ async function onCsvChange(e: Event) {
             :key="product.id"
             :class="{ inactive: !product.is_active }"
           >
-            <td>
+            <td data-label="Imagen">
               <img v-if="product.image_url" :src="product.image_url" class="thumb" alt="" />
               <span v-else class="no-img">—</span>
             </td>
-            <td>{{ product.reference }}</td>
-            <td>{{ product.name }}</td>
-            <td>{{ product.measurements }}</td>
-            <td>{{ product.quality }}</td>
-            <td class="actions-cell">
+            <td data-label="Referencia">{{ product.reference }}</td>
+            <td data-label="Nombre">{{ product.name }}</td>
+            <td data-label="Medidas">{{ product.measurements }}</td>
+            <td data-label="Calidad">{{ product.quality }}</td>
+            <td data-label="Acciones" class="actions-cell">
               <button @click="openEdit(product)">Editar</button>
               <button @click="toggleProduct(product)">
                 {{ product.is_active ? 'Desactivar' : 'Activar' }}
@@ -194,11 +194,12 @@ async function onCsvChange(e: Event) {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1.5rem;
+  gap: 1rem;
 }
 .back { font-size: 0.85rem; color: #6b7280; text-decoration: none; display: block; margin-bottom: 0.25rem; }
 .back:hover { color: #18a34a; }
 h1 { font-size: 1.5rem; }
-.header-actions { display: flex; gap: 0.5rem; align-items: center; padding-top: 1.5rem; }
+.header-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; justify-content: flex-end; padding-top: 1.5rem; }
 .link-box {
   display: flex;
   align-items: center;
@@ -210,7 +211,7 @@ h1 { font-size: 1.5rem; }
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   flex-wrap: wrap;
 }
-code { flex: 1; font-size: 0.8rem; color: #555; word-break: break-all; }
+code { flex: 1; min-width: 0; font-size: 0.8rem; color: #555; word-break: break-all; }
 .badge {
   white-space: nowrap;
   padding: 0.15rem 0.5rem;
@@ -242,4 +243,40 @@ code { flex: 1; font-size: 0.8rem; color: #555; word-break: break-all; }
 tr.inactive { opacity: 0.45; }
 .actions-cell { display: flex; gap: 0.4rem; white-space: nowrap; }
 button.copied { background: #dcfce7; color: #166534; border-color: #86efac; transition: background 0.2s; }
+
+@media (max-width: 600px) {
+  .header { flex-direction: column; }
+  .header-actions { padding-top: 0; justify-content: flex-start; width: 100%; }
+  .header-actions button { flex: 1; }
+
+  .product-table thead { display: none; }
+  .product-table, .product-table tbody, .product-table tr, .product-table td { display: block; width: 100%; }
+  .product-table tr {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0.75rem 0;
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 0.15rem 0.75rem;
+  }
+  .product-table td { padding: 0; border: none; font-size: 0.85rem; }
+  .product-table td[data-label="Imagen"] {
+    grid-row: 1 / 4;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+  }
+  .product-table td[data-label="Referencia"] { grid-column: 2; font-weight: 600; color: #374151; }
+  .product-table td[data-label="Nombre"] { grid-column: 2; color: #555; }
+  .product-table td[data-label="Medidas"],
+  .product-table td[data-label="Calidad"] { grid-column: 2; color: #9ca3af; font-size: 0.8rem; }
+  .product-table td[data-label="Acciones"] {
+    grid-column: 1 / 3;
+    display: flex;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+  }
+  .product-table td[data-label="Acciones"] button { flex: 1; }
+  .thumb { width: 48px; height: 48px; }
+}
 </style>
