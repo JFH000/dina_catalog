@@ -20,6 +20,7 @@ const csvInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
 const importMessage = ref('')
 const importError = ref(false)
+const linkCopied = ref(false)
 
 const publicLink = computed(() =>
   catalog.value ? `${window.location.origin}/c/${catalog.value.slug}` : ''
@@ -55,6 +56,8 @@ async function toggleCatalog() {
 
 function copyLink() {
   navigator.clipboard.writeText(publicLink.value)
+  linkCopied.value = true
+  setTimeout(() => { linkCopied.value = false }, 2000)
 }
 
 function openCreate() {
@@ -127,7 +130,9 @@ async function onCsvChange(e: Event) {
         {{ catalog.is_active ? 'Activo' : 'Inactivo' }}
       </span>
       <code>{{ publicLink }}</code>
-      <button @click="copyLink">Copiar link</button>
+      <button @click="copyLink" :class="{ copied: linkCopied }">
+        {{ linkCopied ? '✓ Copiado' : 'Copiar link' }}
+      </button>
     </div>
 
     <div class="products-section">
@@ -236,4 +241,5 @@ code { flex: 1; font-size: 0.8rem; color: #555; word-break: break-all; }
 .import-msg { margin-bottom: 0.75rem; color: #166534; font-size: 0.9rem; }
 tr.inactive { opacity: 0.45; }
 .actions-cell { display: flex; gap: 0.4rem; white-space: nowrap; }
+button.copied { background: #dcfce7; color: #166534; border-color: #86efac; transition: background 0.2s; }
 </style>

@@ -9,6 +9,7 @@ const catalogStore = useCatalogStore()
 const publicBase = computed(() => window.location.origin)
 const loading = ref(true)
 const fetchError = ref('')
+const copiedId = ref<string | null>(null)
 
 onMounted(async () => {
   try {
@@ -28,8 +29,10 @@ async function toggleActive(id: string, current: boolean) {
   }
 }
 
-function copyLink(slug: string) {
+function copyLink(slug: string, id: string) {
   navigator.clipboard.writeText(`${publicBase.value}/c/${slug}`)
+  copiedId.value = id
+  setTimeout(() => { copiedId.value = null }, 2000)
 }
 </script>
 
@@ -63,7 +66,9 @@ function copyLink(slug: string) {
             </span>
           </div>
           <div class="card-actions" @click.stop>
-            <button @click="copyLink(catalog.slug)">Copiar link</button>
+            <button @click="copyLink(catalog.slug, catalog.id)" :class="{ copied: copiedId === catalog.id }">
+              {{ copiedId === catalog.id ? '✓ Copiado' : 'Copiar link' }}
+            </button>
             <button @click="toggleActive(catalog.id, catalog.is_active)">
               {{ catalog.is_active ? 'Desactivar' : 'Activar' }}
             </button>
@@ -106,4 +111,5 @@ function copyLink(slug: string) {
 .slug { color: #9ca3af; font-size: 0.8rem; margin-top: 0.4rem; }
 .state { color: #9ca3af; margin-top: 1rem; }
 .empty { color: #9ca3af; margin-top: 3rem; text-align: center; }
+button.copied { background: #dcfce7; color: #166534; border-color: #86efac; }
 </style>
