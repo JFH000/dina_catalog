@@ -56,7 +56,8 @@ export const useProductStore = defineStore('products', () => {
 
     if (imageFile) {
       const existing = products.value.find(p => p.id === id)
-      const catalogId = existing?.catalog_id ?? 'unknown'
+      if (!existing) throw new Error('Product not found in local store')
+      const catalogId = existing.catalog_id
       const ext = imageFile.name.split('.').pop() ?? 'jpg'
       const path = `${catalogId}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage

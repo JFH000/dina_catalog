@@ -11,6 +11,7 @@ const makeProduct = (ref: string, name: string) => ({
   quality: 'Alta',
   image_url: null,
   created_at: '',
+  is_active: true,
 })
 
 describe('buildWhatsAppMessage', () => {

@@ -12,6 +12,7 @@ const makeProduct = (id: string): Product => ({
   quality: 'Alta',
   image_url: null,
   created_at: '',
+  is_active: true,
 })
 
 describe('useCartStore', () => {
