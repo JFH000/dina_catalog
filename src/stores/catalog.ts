@@ -17,10 +17,12 @@ export const useCatalogStore = defineStore('catalog', () => {
   }
 
   async function createCatalog(name: string, whatsappNumber?: string): Promise<Catalog> {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
     const slug = generateCatalogSlug(name)
     const { data, error } = await supabase
       .from('catalogs')
-      .insert({ name, slug, whatsapp_number: whatsappNumber ?? null, is_active: true })
+      .insert({ name, slug, whatsapp_number: whatsappNumber ?? null, is_active: true, owner_id: user.id })
       .select()
       .single()
     if (error) throw error
