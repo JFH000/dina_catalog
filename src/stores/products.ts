@@ -24,7 +24,7 @@ export const useProductStore = defineStore('products', () => {
     let image_url: string | null = null
 
     if (imageFile) {
-      const ext = imageFile.name.split('.').pop()
+      const ext = imageFile.name.split('.').pop() ?? 'jpg'
       const path = `${catalogId}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('product-images')
