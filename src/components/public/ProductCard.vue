@@ -19,6 +19,8 @@ function visible(val: string | null | undefined): string | null {
 
 const refText  = computed(() => visible(props.product.reference))
 const nameText = computed(() => visible(props.product.name))
+const measText = computed(() => visible(props.product.measurements))
+const qualText = computed(() => visible(props.product.quality))
 
 let pressTimer: number | null = null
 let touchMoved = false
@@ -39,36 +41,49 @@ function onTouchMove() {
 </script>
 
 <template>
-  <div
-    class="product-card"
-    @touchstart.passive="onTouchStart"
-    @touchend="onTouchEnd"
-    @touchmove.passive="onTouchMove"
-    @contextmenu.prevent
-  >
-    <img
-      v-if="product.image_url"
-      :src="product.image_url"
-      :alt="product.name"
-      class="card-img"
-      draggable="false"
-    />
-    <div v-else class="card-placeholder">—</div>
+  <div class="product-card">
+    <!-- image area with controls overlaid -->
+    <div
+      class="card-image"
+      @touchstart.passive="onTouchStart"
+      @touchend="onTouchEnd"
+      @touchmove.passive="onTouchMove"
+      @contextmenu.prevent
+    >
+      <img
+        v-if="product.image_url"
+        :src="product.image_url"
+        :alt="product.name"
+        class="card-img"
+        draggable="false"
+      />
+      <div v-else class="card-placeholder">—</div>
 
-    <div class="card-bottom">
-      <div class="card-text">
-        <span v-if="refText"  class="text-ref">{{ refText }}</span>
-        <span v-if="nameText" class="text-name">{{ nameText }}</span>
-      </div>
+      <!-- quantity badge top-right -->
+      <span v-if="quantity > 0" class="qty-badge">{{ quantity }}</span>
 
-      <div class="card-qty">
-        <template v-if="quantity > 0">
-          <button class="btn-minus" @click.stop="cart.removeItem(product.id)">−</button>
-          <span class="qty-count">{{ quantity }}</span>
-          <button class="btn-plus"  @click.stop="cart.addItem(product)">+</button>
-        </template>
-        <button v-else class="btn-add" @click.stop="cart.addItem(product)">+</button>
-      </div>
+      <!-- remove: only when qty > 0, bottom-left -->
+      <button
+        v-if="quantity > 0"
+        class="btn-remove"
+        @click.stop="cart.removeItem(product.id)"
+        @touchstart.stop
+      >−</button>
+
+      <!-- add: always, bottom-right -->
+      <button
+        class="btn-add"
+        @click.stop="cart.addItem(product)"
+        @touchstart.stop
+      >+</button>
+    </div>
+
+    <!-- info section below image -->
+    <div class="card-info">
+      <p v-if="refText"  class="info-ref">Ref. {{ refText }}</p>
+      <p v-if="nameText" class="info-name">{{ nameText }}</p>
+      <p v-if="measText" class="info-meas">{{ measText }}</p>
+      <p v-if="qualText" class="info-qual">{{ qualText }}</p>
     </div>
   </div>
 
@@ -81,10 +96,10 @@ function onTouchMove() {
           <div v-else class="pdl-no-img">—</div>
         </div>
         <div class="pdl-info">
-          <p v-if="visible(product.reference)"   class="pdl-ref">{{ visible(product.reference) }}</p>
-          <p v-if="visible(product.name)"        class="pdl-name">{{ visible(product.name) }}</p>
+          <p v-if="visible(product.reference)"    class="pdl-ref">{{ visible(product.reference) }}</p>
+          <p v-if="visible(product.name)"         class="pdl-name">{{ visible(product.name) }}</p>
           <p v-if="visible(product.measurements)" class="pdl-field">{{ visible(product.measurements) }}</p>
-          <p v-if="visible(product.quality)"     class="pdl-field">{{ visible(product.quality) }}</p>
+          <p v-if="visible(product.quality)"      class="pdl-field">{{ visible(product.quality) }}</p>
         </div>
         <div class="pdl-qty">
           <div v-if="quantity > 0" class="pdl-controls">
@@ -101,28 +116,33 @@ function onTouchMove() {
 
 <style scoped>
 .product-card {
-  position: relative;
-  aspect-ratio: 3 / 4;
-  background: #f3f4f6;
+  background: #fff;
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
   -webkit-touch-callout: none;
   user-select: none;
 }
 
+/* ── image area ── */
+.card-image {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: #f3f4f6;
+  flex-shrink: 0;
+}
 .card-img {
-  position: absolute;
-  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
+  display: block;
   pointer-events: none;
 }
-
 .card-placeholder {
-  position: absolute;
-  inset: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -130,101 +150,63 @@ function onTouchMove() {
   font-size: 2rem;
 }
 
-/* gradient strip at the bottom */
-.card-bottom {
+/* quantity badge — top-right */
+.qty-badge {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.38) 55%, transparent 100%);
-  padding: 1.4rem 0.45rem 0.45rem;
-  display: flex;
-  align-items: flex-end;
-  gap: 0.3rem;
+  top: 5px;
+  right: 7px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #16a34a;
+  text-shadow: 0 1px 4px rgba(255,255,255,0.7);
+  pointer-events: none;
 }
 
-.card-text {
-  flex: 1;
-  min-width: 0;
+/* action buttons — bottom corners */
+.btn-remove,
+.btn-add {
+  position: absolute;
+  bottom: 7px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.22);
+}
+.btn-remove { left: 7px;  background: #ef4444; color: #fff; }
+.btn-add    { right: 7px; background: #16a34a; color: #fff; }
+.btn-remove:active { background: #dc2626; }
+.btn-add:active    { background: #15803d; }
+
+/* ── info area ── */
+.card-info {
+  padding: 0.4rem 0.45rem 0.45rem;
   display: flex;
   flex-direction: column;
-  gap: 0.08rem;
+  gap: 0.05rem;
 }
-
-.text-ref,
-.text-name {
-  display: block;
-  color: #fff;
-  font-size: 0.6rem;
-  line-height: 1.25;
+.info-ref,
+.info-name,
+.info-meas,
+.info-qual {
+  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.35;
 }
-.text-ref  { font-weight: 700; }
-.text-name { opacity: 0.85; }
-
-/* quantity controls */
-.card-qty {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.18rem;
-}
-
-.btn-add {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #18a34a;
-  border: none;
-  color: #fff;
-  font-size: 1rem;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
-}
-.btn-add:active { background: #16923f; }
-
-.btn-minus,
-.btn-plus {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  font-size: 0.85rem;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
-}
-.btn-minus {
-  background: rgba(255,255,255,0.2);
-  border: 1px solid rgba(255,255,255,0.45);
-  color: #fff;
-}
-.btn-plus {
-  background: #18a34a;
-  border: none;
-  color: #fff;
-}
-.btn-minus:active { background: rgba(255,255,255,0.35); }
-.btn-plus:active  { background: #16923f; }
-
-.qty-count {
-  color: #fff;
-  font-size: 0.8rem;
-  font-weight: 700;
-  min-width: 0.9rem;
-  text-align: center;
-  line-height: 1;
-}
+.info-ref  { font-size: 0.6rem;  color: #9ca3af; }
+.info-name { font-size: 0.65rem; font-weight: 600; color: #1a1a1a; }
+.info-meas { font-size: 0.6rem;  color: #6b7280; }
+.info-qual { font-size: 0.6rem;  color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
 </style>
 
 <style>
@@ -320,19 +302,19 @@ function onTouchMove() {
   cursor: pointer;
   padding: 0;
 }
-.pdl-btn-add { background: #18a34a; border-color: #18a34a; color: #fff; }
-.pdl-btn-add:hover { background: #16923f; }
+.pdl-btn-add { background: #16a34a; border-color: #16a34a; color: #fff; }
+.pdl-btn-add:hover { background: #15803d; }
 .pdl-number {
   font-size: 1.75rem;
   font-weight: 700;
   min-width: 3rem;
   text-align: center;
-  color: #18a34a;
+  color: #16a34a;
 }
 .pdl-add-btn {
   width: 100%;
   padding: 0.875rem;
-  background: #18a34a;
+  background: #16a34a;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -340,5 +322,5 @@ function onTouchMove() {
   font-weight: 600;
   cursor: pointer;
 }
-.pdl-add-btn:hover { background: #16923f; }
+.pdl-add-btn:hover { background: #15803d; }
 </style>
