@@ -53,20 +53,22 @@ describe('useOrderStore', () => {
 
   it('reject sets status to rejected via a conditional update', async () => {
     const rejected = makeOrder({ status: 'rejected', rejected_at: '2026-08-01T01:00:00Z' })
-    fromMock.mockReturnValue({
-      update: () => ({
-        eq: () => ({
-          eq: () => ({
-            select: () => ({
-              single: () => Promise.resolve({ data: rejected, error: null }),
-            }),
-          }),
-        }),
-      }),
-    })
+    const updateMock = vi.fn()
+    const eqMock = vi.fn()
+    const selectMock = vi.fn()
+    const singleMock = vi.fn()
+
+    updateMock.mockReturnValue({ eq: eqMock })
+    eqMock.mockReturnValue({ eq: vi.fn().mockReturnValue({ select: selectMock }) })
+    selectMock.mockReturnValue({ single: singleMock })
+    singleMock.mockResolvedValue({ data: rejected, error: null })
+
+    fromMock.mockReturnValue({ update: updateMock })
+
     const store = useOrderStore()
     await store.reject('o1')
     expect(fromMock).toHaveBeenCalledWith('orders')
+    expect(updateMock).toHaveBeenCalledWith({ status: 'rejected', rejected_at: expect.any(String) })
   })
 
   it('accept invokes the accept-order edge function and returns the updated order', async () => {
@@ -82,5 +84,77 @@ describe('useOrderStore', () => {
     invokeMock.mockResolvedValue({ data: null, error: new Error('ya fue gestionado') })
     const store = useOrderStore()
     await expect(store.accept('o1')).rejects.toThrow('ya fue gestionado')
+  })
+
+  it('reject updates store.current when order matches', async () => {
+    const pending = makeOrder()
+    const rejected = makeOrder({ status: 'rejected', rejected_at: '2026-08-01T01:00:00Z' })
+
+    const updateMock = vi.fn()
+    const eqMock = vi.fn()
+    const selectMock = vi.fn()
+    const singleMock = vi.fn()
+
+    updateMock.mockReturnValue({ eq: eqMock })
+    eqMock.mockReturnValue({ eq: vi.fn().mockReturnValue({ select: selectMock }) })
+    selectMock.mockReturnValue({ single: singleMock })
+    singleMock.mockResolvedValue({ data: rejected, error: null })
+
+    fromMock.mockReturnValue({ update: updateMock })
+
+    const store = useOrderStore()
+    store.current = pending
+    await store.reject('o1')
+    expect(store.current).toEqual(rejected)
+  })
+
+  it('reject updates store.orders when order exists in array', async () => {
+    const pending = makeOrder()
+    const rejected = makeOrder({ status: 'rejected', rejected_at: '2026-08-01T01:00:00Z' })
+    const otherOrder = makeOrder({ id: 'o2' })
+
+    const updateMock = vi.fn()
+    const eqMock = vi.fn()
+    const selectMock = vi.fn()
+    const singleMock = vi.fn()
+
+    updateMock.mockReturnValue({ eq: eqMock })
+    eqMock.mockReturnValue({ eq: vi.fn().mockReturnValue({ select: selectMock }) })
+    selectMock.mockReturnValue({ single: singleMock })
+    singleMock.mockResolvedValue({ data: rejected, error: null })
+
+    fromMock.mockReturnValue({ update: updateMock })
+
+    const store = useOrderStore()
+    store.orders = [pending, otherOrder]
+    await store.reject('o1')
+    expect(store.orders[0]).toEqual(rejected)
+    expect(store.orders[1]).toEqual(otherOrder)
+  })
+
+  it('accept updates store.current when order matches', async () => {
+    const pending = makeOrder()
+    const accepted = makeOrder({ status: 'accepted', odoo_invoice_id: 42 })
+
+    invokeMock.mockResolvedValue({ data: { order: accepted }, error: null })
+
+    const store = useOrderStore()
+    store.current = pending
+    await store.accept('o1')
+    expect(store.current).toEqual(accepted)
+  })
+
+  it('accept updates store.orders when order exists in array', async () => {
+    const pending = makeOrder()
+    const accepted = makeOrder({ status: 'accepted', odoo_invoice_id: 42 })
+    const otherOrder = makeOrder({ id: 'o2' })
+
+    invokeMock.mockResolvedValue({ data: { order: accepted }, error: null })
+
+    const store = useOrderStore()
+    store.orders = [pending, otherOrder]
+    await store.accept('o1')
+    expect(store.orders[0]).toEqual(accepted)
+    expect(store.orders[1]).toEqual(otherOrder)
   })
 })
