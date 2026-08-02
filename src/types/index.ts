@@ -32,11 +32,17 @@ export interface OrderItem {
 }
 
 export interface Order {
+  id: string
   catalog_id: string
   customer_name: string | null
   customer_email: string | null
   customer_phone: string | null
   items: OrderItem[]
+  status: 'pending' | 'accepted' | 'rejected'
+  odoo_invoice_id: number | null
+  created_at: string
+  accepted_at: string | null
+  rejected_at: string | null
 }
 
 export interface CartItem {
