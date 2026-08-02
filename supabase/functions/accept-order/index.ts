@@ -122,6 +122,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Este pedido ya fue gestionado' }), { status: 409 })
     }
 
+    let invoiceId: number
     try {
       const items = order.items as OrderItem[]
       const { data: products } = await adminClient
@@ -154,27 +155,50 @@ Deno.serve(async (req) => {
           invoice_line_ids: lines.map(line => [0, 0, line]),
         }),
       })
-      const invoiceId = extractCreatedId(invoiceResult)
-
-      const { data: finalOrder, error: updateError } = await adminClient
-        .from('orders')
-        .update({ odoo_invoice_id: invoiceId, accepted_at: new Date().toISOString() })
-        .eq('id', orderId)
-        .select()
-        .single()
-      if (updateError) throw updateError
-
-      return new Response(JSON.stringify({ order: finalOrder }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      invoiceId = extractCreatedId(invoiceResult)
     } catch (odooError) {
+      // Nothing was created in Odoo yet, so it's safe to revert the claim and let a retry happen.
       await adminClient.from('orders').update({ status: 'pending' }).eq('id', orderId)
       return new Response(
         JSON.stringify({ error: `No se pudo crear la factura en Odoo: ${(odooError as Error).message}` }),
         { status: 502 }
       )
     }
+
+    // The Odoo invoice now exists. From here on we must NOT revert status to 'pending' on failure,
+    // since that would let a retry pass the atomic claim again and create a duplicate invoice in Odoo.
+    let finalOrder = null
+    let lastUpdateError = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const { data, error } = await adminClient
+          .from('orders')
+          .update({ odoo_invoice_id: invoiceId, accepted_at: new Date().toISOString() })
+          .eq('id', orderId)
+          .select()
+          .single()
+        if (error) throw error
+        finalOrder = data
+        lastUpdateError = null
+        break
+      } catch (err) {
+        lastUpdateError = err
+      }
+    }
+
+    if (lastUpdateError || !finalOrder) {
+      return new Response(
+        JSON.stringify({
+          error: `La factura se creó en Odoo (ID: ${invoiceId}) pero no se pudo guardar en el pedido. Contacta soporte con este ID para vincularla manualmente.`,
+        }),
+        { status: 500 }
+      )
+    }
+
+    return new Response(JSON.stringify({ order: finalOrder }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500 })
   }
