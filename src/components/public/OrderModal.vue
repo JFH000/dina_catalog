@@ -24,6 +24,7 @@ const customerEmail = ref('')
 const customerPhone = ref('')
 const loading = ref(false)
 const error = ref('')
+const blockedUrl = ref('')
 
 async function send() {
   if (!props.whatsappNumber) {
@@ -32,8 +33,26 @@ async function send() {
   }
   loading.value = true
   error.value = ''
+  blockedUrl.value = ''
+
+  const orderId = crypto.randomUUID()
+  const orderLink = `${window.location.origin}/orders/${orderId}`
+  const message = buildWhatsAppMessage(props.catalog.name, cart.items, {
+    name: customerName.value.trim() || undefined,
+    email: customerEmail.value.trim() || undefined,
+    phone: customerPhone.value.trim() || undefined,
+  }, orderLink)
+  const url = buildWhatsAppUrl(props.whatsappNumber, message)
+
+  // Must run synchronously, before any `await`: iOS Safari only allows window.open
+  // when it's a direct result of the user's tap. Awaiting the insert first (as this
+  // used to do) can consume that gesture, silently blocking the WhatsApp open while
+  // the order still gets saved. orderId is generated client-side above, so the link
+  // never depended on the insert's response anyway.
+  const opened = window.open(url, '_blank')
+  if (!opened) blockedUrl.value = url
+
   try {
-    const orderId = crypto.randomUUID()
     const { error: dbError } = await supabase.from('orders').insert({
       id: orderId,
       catalog_id: props.catalog.id,
@@ -44,22 +63,18 @@ async function send() {
     })
     if (dbError) throw dbError
 
-    const orderLink = `${window.location.origin}/orders/${orderId}`
-    const message = buildWhatsAppMessage(props.catalog.name, cart.items, {
-      name: customerName.value.trim() || undefined,
-      email: customerEmail.value.trim() || undefined,
-      phone: customerPhone.value.trim() || undefined,
-    }, orderLink)
-    const url = buildWhatsAppUrl(props.whatsappNumber, message)
-
-    window.open(url, '_blank')
     cart.clear()
-    emit('close')
+    if (!blockedUrl.value) emit('close')
   } catch {
     error.value = 'No se pudo guardar el pedido. Por favor intenta de nuevo.'
   } finally {
     loading.value = false
   }
+}
+
+function handleFallbackClick() {
+  cart.clear()
+  emit('close')
 }
 </script>
 
@@ -94,7 +109,17 @@ async function send() {
 
       <p v-if="error" class="error">{{ error }}</p>
 
-      <button class="whatsapp-btn" :disabled="loading || cart.items.length === 0" @click="send">
+      <a
+        v-if="blockedUrl"
+        :href="blockedUrl"
+        target="_blank"
+        rel="noopener"
+        class="whatsapp-btn whatsapp-link"
+        @click="handleFallbackClick"
+      >
+        Toca aquí para abrir WhatsApp
+      </a>
+      <button v-else class="whatsapp-btn" :disabled="loading || cart.items.length === 0" @click="send">
         {{ loading ? 'Enviando...' : '📲 Enviar pedido por WhatsApp' }}
       </button>
     </div>
@@ -175,4 +200,5 @@ async function send() {
 }
 .whatsapp-btn:hover:not(:disabled) { background: #1ebe5a; }
 .whatsapp-btn:disabled { opacity: 0.5; }
+.whatsapp-link { display: block; text-align: center; text-decoration: none; }
 </style>
