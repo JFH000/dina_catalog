@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCatalogStore } from '../../stores/catalog'
 import { useProductStore } from '../../stores/products'
+import { useOrderStore } from '../../stores/orders'
 import ProductModal from '../../components/owner/ProductModal.vue'
 import type { Catalog, Product } from '../../types'
 import { parseCatalogCsv } from '../../lib/csv'
@@ -11,6 +12,7 @@ const route = useRoute()
 const router = useRouter()
 const catalogStore = useCatalogStore()
 const productStore = useProductStore()
+const orderStore = useOrderStore()
 
 const catalog = ref<Catalog | null>(null)
 const loading = ref(true)
@@ -44,7 +46,12 @@ onMounted(async () => {
       found = catalogStore.catalogs.find(c => c.id === id)
     }
     catalog.value = found ?? null
-    if (catalog.value) await productStore.fetchByCatalog(id)
+    if (catalog.value) {
+      await Promise.all([
+        productStore.fetchByCatalog(id),
+        orderStore.fetchByCatalog(id),
+      ])
+    }
   } catch {
     catalog.value = null
   } finally {
@@ -142,6 +149,20 @@ async function onCsvChange(e: Event) {
       <button @click="copyLink" :class="{ copied: linkCopied }">
         {{ linkCopied ? '✓ Copiado' : 'Copiar link' }}
       </button>
+    </div>
+
+    <div class="orders-section">
+      <h2>Pedidos ({{ orderStore.orders.length }})</h2>
+      <p v-if="orderStore.orders.length === 0" class="empty">Aún no hay pedidos.</p>
+      <ul v-else class="order-list">
+        <li v-for="order in orderStore.orders" :key="order.id">
+          <router-link :to="`/orders/${order.id}`">
+            {{ order.customer_name || 'Cliente sin nombre' }} —
+            {{ order.items.length }} producto{{ order.items.length !== 1 ? 's' : '' }}
+            <span class="badge" :class="order.status">{{ order.status }}</span>
+          </router-link>
+        </li>
+      </ul>
     </div>
 
     <div class="products-section">
@@ -261,6 +282,13 @@ code { flex: 1; min-width: 0; font-size: 0.8rem; color: #555; word-break: break-
 .no-img { color: #d1d5db; }
 .empty { color: #9ca3af; }
 .import-msg { margin-bottom: 0.75rem; color: #166534; font-size: 0.9rem; }
+.orders-section { margin-bottom: 2rem; }
+.order-list { list-style: none; padding: 0; }
+.order-list li { padding: 0.5rem 0; border-bottom: 1px solid #f3f4f6; }
+.order-list a { display: flex; justify-content: space-between; align-items: center; color: inherit; text-decoration: none; }
+.badge.pending { background: #fef9c3; color: #854d0e; padding: 0.15rem 0.5rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+.badge.accepted { background: #dcfce7; color: #166534; padding: 0.15rem 0.5rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+.badge.rejected { background: #fee2e2; color: #991b1b; padding: 0.15rem 0.5rem; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
 tr.inactive { opacity: 0.45; }
 .actions-cell { display: flex; gap: 0.4rem; white-space: nowrap; }
 button.copied { background: #dcfce7; color: #166534; border-color: #86efac; transition: background 0.2s; }
