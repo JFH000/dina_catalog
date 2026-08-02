@@ -25,7 +25,8 @@ export function productLabel(product: Pick<Product, 'reference' | 'name'>): stri
 export function buildWhatsAppMessage(
   catalogName: string,
   items: CartItem[],
-  customer: CustomerInfo
+  customer: CustomerInfo,
+  orderLink?: string
 ): string {
   const lines: string[] = [`Hola! Mi pedido del catálogo ${catalogName}:`]
   for (const { product, quantity } of items) {
@@ -34,6 +35,7 @@ export function buildWhatsAppMessage(
   if (customer.name) lines.push(`\nNombre: ${customer.name}`)
   if (customer.email) lines.push(`Correo: ${customer.email}`)
   if (customer.phone) lines.push(`Tel: ${customer.phone}`)
+  if (orderLink) lines.push(`\nVer pedido: ${orderLink}`)
   return lines.join('\n')
 }
 

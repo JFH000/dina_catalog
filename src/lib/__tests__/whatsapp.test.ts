@@ -51,6 +51,16 @@ describe('buildWhatsAppMessage', () => {
     expect(msg).not.toContain('Correo:')
     expect(msg).not.toContain('Tel:')
   })
+
+  it('includes order link when provided', () => {
+    const msg = buildWhatsAppMessage('Test', [], {}, 'https://example.com/orders/1')
+    expect(msg).toContain('Ver pedido: https://example.com/orders/1')
+  })
+
+  it('omits order link when not provided', () => {
+    const msg = buildWhatsAppMessage('Test', [], {})
+    expect(msg).not.toContain('Ver pedido:')
+  })
 })
 
 describe('buildWhatsAppUrl', () => {
