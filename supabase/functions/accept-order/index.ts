@@ -98,16 +98,21 @@ Deno.serve(async (req) => {
       })
     }
 
-    const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: authHeader } },
+    const jwt = authHeader.replace(/^Bearer\s+/i, '')
+    const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${jwt}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
     })
-    const { data: { user }, error: userError } = await callerClient.auth.getUser()
-    if (userError || !user) {
+    if (!userRes.ok) {
+      console.error('accept-order: auth failed', { status: userRes.status, body: await userRes.text() })
       return new Response(JSON.stringify({ error: 'Not authenticated' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+    const user = (await userRes.json()) as { id: string }
 
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 

@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useOrderStore } from '../../stores/orders'
 import { useCatalogStore } from '../../stores/catalog'
 import { useProductStore } from '../../stores/products'
+import { useAuthStore } from '../../stores/auth'
 import { productLabel } from '../../lib/whatsapp'
 import type { Order, Catalog } from '../../types'
 
 const route = useRoute()
+const router = useRouter()
 const orderStore = useOrderStore()
 const catalogStore = useCatalogStore()
 const productStore = useProductStore()
+const authStore = useAuthStore()
 
 const order = ref<Order | null>(null)
 const catalog = ref<Catalog | null>(null)
@@ -65,6 +68,11 @@ async function handleAccept() {
   try {
     order.value = await orderStore.accept(order.value.id)
   } catch (e) {
+    if (e instanceof Error && (e as Error & { status?: number }).status === 401) {
+      await authStore.clearInvalidSession()
+      router.push({ path: '/login', query: { redirect: route.fullPath, expired: '1' } })
+      return
+    }
     actionError.value = e instanceof Error ? e.message : 'No se pudo aceptar el pedido. Intenta de nuevo.'
   } finally {
     actionLoading.value = false

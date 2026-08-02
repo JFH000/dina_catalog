@@ -12,7 +12,7 @@ const email = ref('')
 const password = ref('')
 const fullName = ref('')
 const whatsappNumber = ref('')
-const error = ref('')
+const error = ref(route.query.expired ? 'Tu sesión expiró. Inicia sesión de nuevo.' : '')
 const loading = ref(false)
 
 function toggleMode() {

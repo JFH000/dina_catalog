@@ -48,8 +48,11 @@ export const useOrderStore = defineStore('orders', () => {
       body: { orderId: id },
     })
     if (error) {
-      const body = await (error as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.().catch(() => null)
-      throw new Error(body?.error ?? error.message)
+      const context = (error as { context?: { status?: number; json?: () => Promise<{ error?: string }> } }).context
+      const body = await context?.json?.().catch(() => null)
+      const err = new Error(body?.error ?? error.message) as Error & { status?: number }
+      err.status = context?.status
+      throw err
     }
     const updated = data.order as Order
     if (current.value?.id === id) current.value = updated

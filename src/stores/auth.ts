@@ -57,5 +57,15 @@ export const useAuthStore = defineStore('auth', () => {
     profile.value = null
   }
 
-  return { user, profile, init, signUp, signIn, signOut }
+  // The server can invalidate a session (sign-out elsewhere, revoked session, etc.) while the
+  // browser still holds a non-expired access token. supabase.auth.getSession() only checks local
+  // expiry, so the stale token passes client-side checks and only fails once a server call
+  // validates it. Clear it locally so the app doesn't keep sending a token the server rejects.
+  async function clearInvalidSession() {
+    await supabase.auth.signOut({ scope: 'local' })
+    user.value = null
+    profile.value = null
+  }
+
+  return { user, profile, init, signUp, signIn, signOut, clearInvalidSession }
 })

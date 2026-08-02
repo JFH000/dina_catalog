@@ -89,6 +89,15 @@ describe('useOrderStore', () => {
     await expect(store.accept('o1')).rejects.toThrow('ya fue gestionado')
   })
 
+  it('accept preserves the HTTP status on the thrown error so callers can detect an expired session', async () => {
+    const error = Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+      context: { status: 401, json: async () => ({ error: 'Not authenticated' }) },
+    })
+    invokeMock.mockResolvedValue({ data: null, error })
+    const store = useOrderStore()
+    await expect(store.accept('o1')).rejects.toMatchObject({ status: 401, message: 'Not authenticated' })
+  })
+
   it('reject updates store.current when order matches', async () => {
     const pending = makeOrder()
     const rejected = makeOrder({ status: 'rejected', rejected_at: '2026-08-01T01:00:00Z' })
