@@ -40,3 +40,6 @@ __screenshots__/
 
 # Superpowers subagent-driven-development scratch workspace
 .superpowers/
+
+# Supabase CLI local project-link cache
+supabase/.temp/

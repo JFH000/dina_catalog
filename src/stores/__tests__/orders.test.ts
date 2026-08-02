@@ -22,7 +22,7 @@ function makeOrder(overrides: Record<string, unknown> = {}) {
     customer_phone: null,
     items: [{ product_id: 'p1', quantity: 2 }],
     status: 'pending',
-    odoo_invoice_id: null,
+    odoo_quotation_id: null,
     created_at: '2026-08-01T00:00:00Z',
     accepted_at: null,
     rejected_at: null,
@@ -72,12 +72,12 @@ describe('useOrderStore', () => {
   })
 
   it('accept invokes the accept-order edge function and returns the updated order', async () => {
-    const accepted = makeOrder({ status: 'accepted', odoo_invoice_id: 42 })
+    const accepted = makeOrder({ status: 'accepted', odoo_quotation_id: 42 })
     invokeMock.mockResolvedValue({ data: { order: accepted }, error: null })
     const store = useOrderStore()
     const result = await store.accept('o1')
     expect(invokeMock).toHaveBeenCalledWith('accept-order', { body: { orderId: 'o1' } })
-    expect(result.odoo_invoice_id).toBe(42)
+    expect(result.odoo_quotation_id).toBe(42)
   })
 
   it('accept throws when the edge function returns an error', async () => {
@@ -137,7 +137,7 @@ describe('useOrderStore', () => {
 
   it('accept updates store.current when order matches', async () => {
     const pending = makeOrder()
-    const accepted = makeOrder({ status: 'accepted', odoo_invoice_id: 42 })
+    const accepted = makeOrder({ status: 'accepted', odoo_quotation_id: 42 })
 
     invokeMock.mockResolvedValue({ data: { order: accepted }, error: null })
 
@@ -149,7 +149,7 @@ describe('useOrderStore', () => {
 
   it('accept updates store.orders when order exists in array', async () => {
     const pending = makeOrder()
-    const accepted = makeOrder({ status: 'accepted', odoo_invoice_id: 42 })
+    const accepted = makeOrder({ status: 'accepted', odoo_quotation_id: 42 })
     const otherOrder = makeOrder({ id: 'o2' })
 
     invokeMock.mockResolvedValue({ data: { order: accepted }, error: null })

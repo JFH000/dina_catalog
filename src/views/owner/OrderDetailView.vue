@@ -19,9 +19,9 @@ const notFound = ref(false)
 const actionLoading = ref(false)
 const actionError = ref('')
 
-const odooInvoiceUrl = computed(() => {
-  if (!order.value?.odoo_invoice_id || !import.meta.env.VITE_ODOO_URL) return null
-  return `${import.meta.env.VITE_ODOO_URL}/web#id=${order.value.odoo_invoice_id}&model=account.move&view_type=form`
+const odooQuotationUrl = computed(() => {
+  if (!order.value?.odoo_quotation_id || !import.meta.env.VITE_ODOO_URL) return null
+  return `${import.meta.env.VITE_ODOO_URL}/web#id=${order.value.odoo_quotation_id}&model=sale.order&view_type=form`
 })
 
 function itemLabel(productId: string): string {
@@ -116,8 +116,8 @@ async function handleReject() {
         <button :disabled="actionLoading" @click="handleReject">Rechazar</button>
       </div>
 
-      <a v-if="odooInvoiceUrl" :href="odooInvoiceUrl" target="_blank" rel="noopener" class="invoice-link">
-        Ver factura en Odoo ↗
+      <a v-if="odooQuotationUrl" :href="odooQuotationUrl" target="_blank" rel="noopener" class="invoice-link">
+        Ver cotización en Odoo ↗
       </a>
     </div>
   </div>

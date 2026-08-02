@@ -17,10 +17,10 @@ interface OrderItem {
   quantity: number
 }
 
-interface OdooInvoiceLine {
+interface OdooOrderLine {
   product_id?: number
   name: string
-  quantity: number
+  product_uom_qty: number
   price_unit?: number
 }
 
@@ -63,10 +63,10 @@ function extractRecords(mcpResult: unknown): Array<Record<string, unknown>> {
 function extractCreatedId(mcpResult: unknown): number {
   const content = (mcpResult as { content?: Array<{ text?: string }> })?.content
   const text = content?.[0]?.text
-  if (!text) throw new Error('Respuesta inesperada de Odoo al crear la factura')
+  if (!text) throw new Error('Respuesta inesperada de Odoo al crear la cotización')
   const parsed = JSON.parse(text)
   const id = parsed.id ?? parsed[0]?.id ?? parsed
-  if (typeof id !== 'number') throw new Error('No se pudo determinar el ID de la factura creada')
+  if (typeof id !== 'number') throw new Error('No se pudo determinar el ID de la cotización creada')
   return id
 }
 
@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    let invoiceId: number
+    let quotationId: number
     let odooCreateIssued = false
     try {
       const items = order.items as OrderItem[]
@@ -159,35 +159,36 @@ Deno.serve(async (req) => {
         .select('id, reference, name')
         .in('id', items.map(i => i.product_id))
 
-      const lines: OdooInvoiceLine[] = []
+      const lines: OdooOrderLine[] = []
       for (const item of items) {
         const product = products?.find(p => p.id === item.product_id)
         const reference = product?.reference ?? item.product_id
         const name = product?.name ?? 'Producto'
         const odooProduct = await findOdooProduct(reference)
         if (odooProduct) {
-          lines.push({ product_id: odooProduct.id, name: odooProduct.name, quantity: item.quantity })
+          lines.push({ product_id: odooProduct.id, name: odooProduct.name, product_uom_qty: item.quantity })
         } else {
           lines.push({
             name: `[${reference}] ${name} (no encontrado en Odoo)`,
-            quantity: item.quantity,
+            product_uom_qty: item.quantity,
             price_unit: 0,
           })
         }
       }
 
       odooCreateIssued = true
-      const invoiceResult = await callOdooTool('ai_tool_create_record', {
-        model_name: 'account.move',
+      // sale.order defaults to state='draft' ("Cotización") on creation — we never call
+      // action_confirm, so it stays a quotation, matching what was requested.
+      const orderResult = await callOdooTool('ai_tool_create_record', {
+        model_name: 'sale.order',
         values: JSON.stringify({
-          move_type: 'out_invoice',
           partner_id: ODOO_DEFAULT_PARTNER_ID,
-          invoice_line_ids: lines.map(line => [0, 0, line]),
+          order_line: lines.map(line => [0, 0, line]),
         }),
       })
-      invoiceId = extractCreatedId(invoiceResult)
+      quotationId = extractCreatedId(orderResult)
     } catch (odooError) {
-      // Only revert the claim if the create call itself never went out — if it did, the invoice
+      // Only revert the claim if the create call itself never went out — if it did, the quotation
       // may already exist in Odoo, so reverting to 'pending' here would let a retry create a duplicate.
       if (!odooCreateIssued) {
         await adminClient.from('orders').update({ status: 'pending' }).eq('id', orderId)
@@ -196,22 +197,22 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           error: odooCreateIssued
-            ? `La factura pudo haberse creado en Odoo pero no se pudo confirmar. Revisa manualmente en Odoo antes de reintentar. Detalle: ${(odooError as Error).message}`
-            : `No se pudo crear la factura en Odoo: ${(odooError as Error).message}`,
+            ? `La cotización pudo haberse creado en Odoo pero no se pudo confirmar. Revisa manualmente en Odoo antes de reintentar. Detalle: ${(odooError as Error).message}`
+            : `No se pudo crear la cotización en Odoo: ${(odooError as Error).message}`,
         }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // The Odoo invoice now exists. From here on we must NOT revert status to 'pending' on failure,
-    // since that would let a retry pass the atomic claim again and create a duplicate invoice in Odoo.
+    // The Odoo quotation now exists. From here on we must NOT revert status to 'pending' on failure,
+    // since that would let a retry pass the atomic claim again and create a duplicate quotation in Odoo.
     let finalOrder = null
     let lastUpdateError = null
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const { data, error } = await adminClient
           .from('orders')
-          .update({ odoo_invoice_id: invoiceId, accepted_at: new Date().toISOString() })
+          .update({ odoo_quotation_id: quotationId, accepted_at: new Date().toISOString() })
           .eq('id', orderId)
           .select()
           .single()
@@ -225,10 +226,10 @@ Deno.serve(async (req) => {
     }
 
     if (lastUpdateError || !finalOrder) {
-      console.error({ orderId, invoiceId, lastUpdateError })
+      console.error({ orderId, quotationId, lastUpdateError })
       return new Response(
         JSON.stringify({
-          error: `La factura se creó en Odoo (ID: ${invoiceId}) pero no se pudo guardar en el pedido. Contacta soporte con este ID para vincularla manualmente.`,
+          error: `La cotización se creó en Odoo (ID: ${quotationId}) pero no se pudo guardar en el pedido. Contacta soporte con este ID para vincularla manualmente.`,
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )

@@ -39,7 +39,7 @@ export interface Order {
   customer_phone: string | null
   items: OrderItem[]
   status: 'pending' | 'accepted' | 'rejected'
-  odoo_invoice_id: number | null
+  odoo_quotation_id: number | null
   created_at: string
   accepted_at: string | null
   rejected_at: string | null
