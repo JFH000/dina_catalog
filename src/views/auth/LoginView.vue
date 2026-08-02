@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 
 const isSignUp = ref(false)
@@ -32,7 +33,7 @@ async function submit() {
     } else {
       await auth.signIn(email.value, password.value)
     }
-    router.push('/dashboard')
+    router.push((route.query.redirect as string) || '/dashboard')
   } catch (e: any) {
     error.value = e.message
   } finally {

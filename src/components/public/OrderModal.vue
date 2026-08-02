@@ -33,20 +33,18 @@ async function send() {
   loading.value = true
   error.value = ''
   try {
-    const { data: insertedOrder, error: dbError } = await supabase
-      .from('orders')
-      .insert({
-        catalog_id: props.catalog.id,
-        customer_name: customerName.value.trim() || null,
-        customer_email: customerEmail.value.trim() || null,
-        customer_phone: customerPhone.value.trim() || null,
-        items: cart.items.map(i => ({ product_id: i.product.id, quantity: i.quantity })),
-      })
-      .select()
-      .single()
+    const orderId = crypto.randomUUID()
+    const { error: dbError } = await supabase.from('orders').insert({
+      id: orderId,
+      catalog_id: props.catalog.id,
+      customer_name: customerName.value.trim() || null,
+      customer_email: customerEmail.value.trim() || null,
+      customer_phone: customerPhone.value.trim() || null,
+      items: cart.items.map(i => ({ product_id: i.product.id, quantity: i.quantity })),
+    })
     if (dbError) throw dbError
 
-    const orderLink = `${window.location.origin}/orders/${insertedOrder.id}`
+    const orderLink = `${window.location.origin}/orders/${orderId}`
     const message = buildWhatsAppMessage(props.catalog.name, cart.items, {
       name: customerName.value.trim() || undefined,
       email: customerEmail.value.trim() || undefined,

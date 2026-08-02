@@ -47,7 +47,10 @@ export const useOrderStore = defineStore('orders', () => {
     const { data, error } = await supabase.functions.invoke('accept-order', {
       body: { orderId: id },
     })
-    if (error) throw error
+    if (error) {
+      const body = await (error as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.().catch(() => null)
+      throw new Error(body?.error ?? error.message)
+    }
     const updated = data.order as Order
     if (current.value?.id === id) current.value = updated
     const idx = orders.value.findIndex(o => o.id === id)

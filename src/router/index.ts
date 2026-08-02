@@ -42,7 +42,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   if (to.meta.requiresAuth) {
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return '/login'
+    if (!session) return { path: '/login', query: { redirect: to.fullPath } }
   }
 })
 

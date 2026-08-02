@@ -4,7 +4,13 @@ const ODOO_URL = Deno.env.get('ODOO_URL')!
 const ODOO_MCP_API_KEY = Deno.env.get('ODOO_MCP_API_KEY')!
 const ODOO_DEFAULT_PARTNER_ID = Number(Deno.env.get('ODOO_DEFAULT_PARTNER_ID')!)
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 interface OrderItem {
   product_id: string
@@ -78,23 +84,36 @@ async function findOdooProduct(reference: string): Promise<{ id: number; name: s
 }
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   try {
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), { status: 401 })
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const { orderId } = await req.json()
     if (!orderId) {
-      return new Response(JSON.stringify({ error: 'orderId is required' }), { status: 400 })
+      return new Response(JSON.stringify({ error: 'orderId is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
-    const callerClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     })
     const { data: { user }, error: userError } = await callerClient.auth.getUser()
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401 })
+      return new Response(JSON.stringify({ error: 'Not authenticated' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -105,10 +124,16 @@ Deno.serve(async (req) => {
       .eq('id', orderId)
       .single()
     if (orderError || !order) {
-      return new Response(JSON.stringify({ error: 'Order not found' }), { status: 404 })
+      return new Response(JSON.stringify({ error: 'Order not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
     if (order.catalogs.owner_id !== user.id) {
-      return new Response(JSON.stringify({ error: 'Not authorized for this order' }), { status: 403 })
+      return new Response(JSON.stringify({ error: 'Not authorized for this order' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     const { data: claimed, error: claimError } = await adminClient
@@ -119,10 +144,14 @@ Deno.serve(async (req) => {
       .select()
       .single()
     if (claimError || !claimed) {
-      return new Response(JSON.stringify({ error: 'Este pedido ya fue gestionado' }), { status: 409 })
+      return new Response(JSON.stringify({ error: 'Este pedido ya fue gestionado' }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
     }
 
     let invoiceId: number
+    let odooCreateIssued = false
     try {
       const items = order.items as OrderItem[]
       const { data: products } = await adminClient
@@ -147,6 +176,7 @@ Deno.serve(async (req) => {
         }
       }
 
+      odooCreateIssued = true
       const invoiceResult = await callOdooTool('ai_tool_create_record', {
         model_name: 'account.move',
         values: JSON.stringify({
@@ -157,11 +187,19 @@ Deno.serve(async (req) => {
       })
       invoiceId = extractCreatedId(invoiceResult)
     } catch (odooError) {
-      // Nothing was created in Odoo yet, so it's safe to revert the claim and let a retry happen.
-      await adminClient.from('orders').update({ status: 'pending' }).eq('id', orderId)
+      // Only revert the claim if the create call itself never went out — if it did, the invoice
+      // may already exist in Odoo, so reverting to 'pending' here would let a retry create a duplicate.
+      if (!odooCreateIssued) {
+        await adminClient.from('orders').update({ status: 'pending' }).eq('id', orderId)
+      }
+      console.error('accept-order: Odoo call failed', { orderId, odooCreateIssued, error: (odooError as Error).message })
       return new Response(
-        JSON.stringify({ error: `No se pudo crear la factura en Odoo: ${(odooError as Error).message}` }),
-        { status: 502 }
+        JSON.stringify({
+          error: odooCreateIssued
+            ? `La factura pudo haberse creado en Odoo pero no se pudo confirmar. Revisa manualmente en Odoo antes de reintentar. Detalle: ${(odooError as Error).message}`
+            : `No se pudo crear la factura en Odoo: ${(odooError as Error).message}`,
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -187,19 +225,23 @@ Deno.serve(async (req) => {
     }
 
     if (lastUpdateError || !finalOrder) {
+      console.error({ orderId, invoiceId, lastUpdateError })
       return new Response(
         JSON.stringify({
           error: `La factura se creó en Odoo (ID: ${invoiceId}) pero no se pudo guardar en el pedido. Contacta soporte con este ID para vincularla manualmente.`,
         }),
-        { status: 500 }
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     return new Response(JSON.stringify({ order: finalOrder }), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500 })
+    return new Response(JSON.stringify({ error: (e as Error).message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 })

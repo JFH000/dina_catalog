@@ -20,7 +20,7 @@ const actionLoading = ref(false)
 const actionError = ref('')
 
 const odooInvoiceUrl = computed(() => {
-  if (!order.value?.odoo_invoice_id) return null
+  if (!order.value?.odoo_invoice_id || !import.meta.env.VITE_ODOO_URL) return null
   return `${import.meta.env.VITE_ODOO_URL}/web#id=${order.value.odoo_invoice_id}&model=account.move&view_type=form`
 })
 
@@ -64,8 +64,8 @@ async function handleAccept() {
   actionError.value = ''
   try {
     order.value = await orderStore.accept(order.value.id)
-  } catch {
-    actionError.value = 'No se pudo aceptar el pedido. Intenta de nuevo.'
+  } catch (e) {
+    actionError.value = e instanceof Error ? e.message : 'No se pudo aceptar el pedido. Intenta de nuevo.'
   } finally {
     actionLoading.value = false
   }

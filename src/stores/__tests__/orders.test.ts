@@ -81,7 +81,10 @@ describe('useOrderStore', () => {
   })
 
   it('accept throws when the edge function returns an error', async () => {
-    invokeMock.mockResolvedValue({ data: null, error: new Error('ya fue gestionado') })
+    const error = Object.assign(new Error('Edge Function returned a non-2xx status code'), {
+      context: { json: async () => ({ error: 'ya fue gestionado' }) },
+    })
+    invokeMock.mockResolvedValue({ data: null, error })
     const store = useOrderStore()
     await expect(store.accept('o1')).rejects.toThrow('ya fue gestionado')
   })
