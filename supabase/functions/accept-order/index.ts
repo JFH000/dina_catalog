@@ -1,7 +1,9 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 
 const ODOO_URL = Deno.env.get('ODOO_URL')!
-const ODOO_MCP_API_KEY = Deno.env.get('ODOO_MCP_API_KEY')!
+const ODOO_DB = Deno.env.get('ODOO_DB')!
+const ODOO_USER = Deno.env.get('ODOO_USER')!
+const ODOO_API_KEY = Deno.env.get('ODOO_API_KEY')!
 const ODOO_DEFAULT_PARTNER_ID = Number(Deno.env.get('ODOO_DEFAULT_PARTNER_ID')!)
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -24,63 +26,54 @@ interface OdooOrderLine {
   price_unit?: number
 }
 
-let mcpRequestId = 0
+let jsonRpcId = 0
 
-async function callOdooTool(toolName: string, args: Record<string, unknown>) {
-  mcpRequestId++
-  const res = await fetch(`${ODOO_URL}/mcp`, {
+async function odooCall(service: string, method: string, args: unknown[]) {
+  jsonRpcId++
+  const res = await fetch(`${ODOO_URL}/jsonrpc`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${ODOO_MCP_API_KEY}`,
-      'Content-Type': 'application/json',
-      'Accept': 'application/json, text/event-stream',
-    },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: mcpRequestId,
-      method: 'tools/call',
-      params: { name: toolName, arguments: args },
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', method: 'call', params: { service, method, args }, id: jsonRpcId }),
   })
   if (!res.ok) {
-    throw new Error(`Odoo MCP request failed: ${res.status} ${await res.text()}`)
+    throw new Error(`Odoo JSON-RPC request failed: ${res.status} ${await res.text()}`)
   }
   const json = await res.json()
   if (json.error) {
-    throw new Error(`Odoo MCP error: ${json.error.message ?? JSON.stringify(json.error)}`)
+    const message = json.error.data?.message ?? json.error.message ?? JSON.stringify(json.error)
+    throw new Error(`Odoo error: ${message}`)
   }
   return json.result
 }
 
-function extractRecords(mcpResult: unknown): Array<Record<string, unknown>> {
-  const content = (mcpResult as { content?: Array<{ text?: string }> })?.content
-  const text = content?.[0]?.text
-  if (!text) return []
-  const parsed = JSON.parse(text)
-  return Array.isArray(parsed) ? parsed : ((parsed.records as Array<Record<string, unknown>>) ?? [])
+let cachedUid: number | null = null
+
+async function odooAuthenticate(): Promise<number> {
+  if (cachedUid !== null) return cachedUid
+  const uid = await odooCall('common', 'authenticate', [ODOO_DB, ODOO_USER, ODOO_API_KEY, {}])
+  if (!uid) throw new Error('Odoo authentication failed')
+  cachedUid = uid as number
+  return cachedUid
 }
 
-function extractCreatedId(mcpResult: unknown): number {
-  const content = (mcpResult as { content?: Array<{ text?: string }> })?.content
-  const text = content?.[0]?.text
-  if (!text) throw new Error('Respuesta inesperada de Odoo al crear la cotización')
-  const parsed = JSON.parse(text)
-  const id = parsed.id ?? parsed[0]?.id ?? parsed
-  if (typeof id !== 'number') throw new Error('No se pudo determinar el ID de la cotización creada')
-  return id
+async function odooExecuteKw(
+  model: string,
+  method: string,
+  args: unknown[],
+  kwargs: Record<string, unknown> = {}
+) {
+  const uid = await odooAuthenticate()
+  return odooCall('object', 'execute_kw', [ODOO_DB, uid, ODOO_API_KEY, model, method, args, kwargs])
 }
 
 async function findOdooProduct(reference: string): Promise<{ id: number; name: string } | null> {
-  const result = await callOdooTool('ai_tool_search', {
-    model_name: 'product.product',
-    domain: JSON.stringify([['default_code', '=', reference]]),
-    fields: ['id', 'name'],
-    limit: 1,
-  })
-  const records = extractRecords(result)
-  return records.length > 0
-    ? { id: records[0].id as number, name: records[0].name as string }
-    : null
+  const records = (await odooExecuteKw(
+    'product.product',
+    'search_read',
+    [[['default_code', '=', reference]]],
+    { fields: ['id', 'name'], limit: 1 }
+  )) as Array<{ id: number; name: string }>
+  return records.length > 0 ? { id: records[0].id, name: records[0].name } : null
 }
 
 Deno.serve(async (req) => {
@@ -179,14 +172,10 @@ Deno.serve(async (req) => {
       odooCreateIssued = true
       // sale.order defaults to state='draft' ("Cotización") on creation — we never call
       // action_confirm, so it stays a quotation, matching what was requested.
-      const orderResult = await callOdooTool('ai_tool_create_record', {
-        model_name: 'sale.order',
-        values: JSON.stringify({
-          partner_id: ODOO_DEFAULT_PARTNER_ID,
-          order_line: lines.map(line => [0, 0, line]),
-        }),
-      })
-      quotationId = extractCreatedId(orderResult)
+      quotationId = (await odooExecuteKw('sale.order', 'create', [{
+        partner_id: ODOO_DEFAULT_PARTNER_ID,
+        order_line: lines.map(line => [0, 0, line]),
+      }])) as number
     } catch (odooError) {
       // Only revert the claim if the create call itself never went out — if it did, the quotation
       // may already exist in Odoo, so reverting to 'pending' here would let a retry create a duplicate.
