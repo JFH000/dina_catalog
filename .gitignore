@@ -37,3 +37,6 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Superpowers subagent-driven-development scratch workspace
+.superpowers/
